@@ -14,14 +14,16 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const name     = (body.name ?? '').trim();
-  const city     = (body.city ?? '').trim();
-  const timezone = (body.timezone ?? '').trim() || 'America/New_York';
-  const email    = (body.email ?? '').trim().toLowerCase();
-  const password = (body.password ?? '').trim();
+  const name      = (body.name ?? '').trim();
+  const city      = (body.city ?? '').trim();
+  const venueCode = (body.venueCode ?? '').trim().toUpperCase();
+  const timezone  = (body.timezone ?? '').trim() || 'America/New_York';
+  const email     = (body.email ?? '').trim().toLowerCase();
+  const password  = (body.password ?? '').trim();
 
-  if (!name)     return NextResponse.json({ error: 'Venue name is required' }, { status: 400 });
-  if (!email)    return NextResponse.json({ error: 'Admin email is required' }, { status: 400 });
+  if (!name)      return NextResponse.json({ error: 'Venue name is required' }, { status: 400 });
+  if (!venueCode) return NextResponse.json({ error: 'Venue code is required' }, { status: 400 });
+  if (!email)     return NextResponse.json({ error: 'Admin email is required' }, { status: 400 });
   if (!password || password.length < 8) {
     return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
   }
@@ -36,9 +38,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'An account with that email already exists' }, { status: 409 });
   }
 
+  // venue_code must be unique across venues — it's the permanent code
+  // players type to join whatever game is currently live at this venue.
+  const { data: existingCode } = await supabase
+    .from('locations')
+    .select('id')
+    .ilike('venue_code', venueCode)
+    .maybeSingle();
+  if (existingCode) {
+    return NextResponse.json({ error: 'That venue code is already in use' }, { status: 409 });
+  }
+
   const { data: location, error: locErr } = await supabase
     .from('locations')
-    .insert({ name, city: city || '', timezone, is_active: true })
+    .insert({ name, city: city || '', venue_code: venueCode, timezone, is_active: true })
     .select('id')
     .single();
 

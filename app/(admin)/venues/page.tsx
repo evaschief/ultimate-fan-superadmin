@@ -5,6 +5,7 @@ interface Venue {
   id: string;
   name: string;
   city: string;
+  venue_code: string | null;
   is_active: boolean;
   created_at: string | null;
   gamesCount: number;
@@ -14,7 +15,7 @@ async function getVenues(): Promise<Venue[]> {
   try {
     const { data: locations, error } = await supabase
       .from('locations')
-      .select('id, name, city, is_active, created_at')
+      .select('id, name, city, venue_code, is_active, created_at')
       .order('created_at', { ascending: false });
 
     if (error || !locations) return [];

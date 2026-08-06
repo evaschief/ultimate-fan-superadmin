@@ -7,6 +7,7 @@ interface Venue {
   id: string;
   name: string;
   city: string;
+  venue_code: string | null;
   is_active: boolean;
   created_at: string | null;
   gamesCount: number;
@@ -28,6 +29,7 @@ export const US_TIMEZONES = [
 function AddVenueModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
+  const [venueCode, setVenueCode] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,7 +44,7 @@ function AddVenueModal({ onClose, onCreated }: { onClose: () => void; onCreated:
       const res = await fetch('/api/venues', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, city, timezone, email, password }),
+        body: JSON.stringify({ name, city, venueCode, timezone, email, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -88,6 +90,19 @@ function AddVenueModal({ onClose, onCreated }: { onClose: () => void; onCreated:
               placeholder="e.g. Austin, TX"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-secondary mb-1">Venue Code</label>
+            <input
+              type="text" required value={venueCode}
+              onChange={e => setVenueCode(e.target.value.toUpperCase())}
+              placeholder="e.g. BREW"
+              maxLength={12}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-muted mt-1">
+              Permanent code players type to join whatever game is live at this venue.
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-secondary mb-1">Timezone</label>
@@ -170,6 +185,7 @@ export default function VenuesClient({ venues }: { venues: Venue[] }) {
           <thead>
             <tr className="border-b border-border bg-gray-50">
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Venue</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Code</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">City</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Games Played</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Status</th>
@@ -179,7 +195,7 @@ export default function VenuesClient({ venues }: { venues: Venue[] }) {
           <tbody>
             {venues.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-3 py-10 text-center text-muted">No venues found</td>
+                <td colSpan={6} className="px-3 py-10 text-center text-muted">No venues found</td>
               </tr>
             ) : (
               venues.map((v, i) => (
@@ -192,6 +208,7 @@ export default function VenuesClient({ venues }: { venues: Venue[] }) {
                   }
                 >
                   <td className="px-3 py-2 font-medium text-gray-900">{v.name || '—'}</td>
+                  <td className="px-3 py-2 font-mono text-secondary">{v.venue_code || '—'}</td>
                   <td className="px-3 py-2 text-secondary">{v.city || '—'}</td>
                   <td className="px-3 py-2 text-secondary">{v.gamesCount}</td>
                   <td className="px-3 py-2">
