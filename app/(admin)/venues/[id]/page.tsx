@@ -6,6 +6,7 @@ import TimezoneEditor from './TimezoneEditor';
 interface VenueGame {
   id: string;
   joinCode: string;
+  hasCode: boolean;
   sport: string;
   status: string;
   homeTeam: string;
@@ -39,6 +40,7 @@ async function getVenueGames(locationId: string): Promise<VenueGame[]> {
   return data.map(row => ({
     id: row.id,
     joinCode: row.join_code ?? row.id,
+    hasCode: row.join_code != null,
     sport: row.sport ?? 'NHL',
     status: row.status ?? 'lobby',
     homeTeam: row.home_team ?? '',
@@ -89,9 +91,15 @@ export default async function VenueSchedulePage({ params }: { params: { id: stri
               {rows.map((g, i) => (
                 <tr key={g.id} className={i % 2 === 0 ? 'bg-white border-b border-border last:border-0' : 'bg-gray-50/50 border-b border-border last:border-0'}>
                   <td className="px-3 py-2">
-                    <Link href={`/games/${g.id}`} className="font-mono font-semibold text-gray-900 hover:underline">
-                      {g.joinCode}
-                    </Link>
+                    {g.hasCode ? (
+                      <Link href={`/games/${g.id}`} className="font-mono font-semibold text-gray-900 hover:underline">
+                        {g.joinCode}
+                      </Link>
+                    ) : (
+                      <Link href={`/games/${g.id}`} className="text-xs text-muted italic hover:underline">
+                        Code not assigned yet
+                      </Link>
+                    )}
                     <div className="text-xs text-secondary mt-0.5">
                       {g.awayTeam && g.homeTeam ? `${g.awayTeam} vs ${g.homeTeam}` : '—'}
                     </div>

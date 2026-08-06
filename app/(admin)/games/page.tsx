@@ -29,7 +29,12 @@ async function getAllGames(): Promise<GameSession[]> {
 
     return data.map(row => ({
       id: row.id,
+      // Prepopulated future games (see schedule-games' assignCodes:false
+      // path) have no join_code yet — fall back to the row id only as an
+      // internal identifier, never shown as-is (see GamesClient's hasCode
+      // check, which shows "Code not assigned yet" instead).
       gameCode: row.join_code ?? row.id,
+      hasCode: row.join_code != null,
       sport: row.sport ?? 'NHL',
       status: row.status ?? 'lobby',
       homeTeam: row.home_team ?? '',

@@ -84,6 +84,10 @@ export interface GameSession {
   /// from createdAt (when the row was inserted, e.g. when the schedule
   /// fetch created it, which can be days before the game itself).
   scheduledAt?: string | null;
+  /// False for prepopulated future games that don't have a join_code yet
+  /// (see schedule-games' assignCodes:false path). When false, `gameCode`
+  /// falls back to the internal row id and should not be displayed as-is.
+  hasCode?: boolean;
   playerCount?: number;
   openBetCount?: number;
 }

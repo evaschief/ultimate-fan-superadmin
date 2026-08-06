@@ -128,7 +128,9 @@ export default async function GameDetailPage({ params }: { params: { id: string 
           <div>
             <h1 className="text-lg font-semibold text-gray-900">
               {game.away_team} vs {game.home_team}
-              <span className="font-mono text-muted font-normal ml-2 text-base">· {game.join_code}</span>
+              <span className="font-mono text-muted font-normal ml-2 text-base">
+                · {game.join_code ?? 'Code not assigned yet'}
+              </span>
             </h1>
             <p className="text-secondary text-sm mt-0.5">
               {game.sport}

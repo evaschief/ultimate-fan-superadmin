@@ -151,7 +151,11 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
                   >
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-semibold text-gray-900">{game.gameCode}</span>
+                        {game.hasCode === false ? (
+                          <span className="text-xs text-muted italic">Code not assigned yet</span>
+                        ) : (
+                          <span className="font-mono font-semibold text-gray-900">{game.gameCode}</span>
+                        )}
                         {game.isSim && (
                           <span className="text-xs bg-amber-dim text-amber border border-amber-border px-1.5 py-0.5 rounded">SIM</span>
                         )}
