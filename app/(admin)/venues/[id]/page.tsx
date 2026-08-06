@@ -21,11 +21,17 @@ interface VenueGame {
 }
 
 async function getVenue(id: string) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('locations')
     .select('id, name, city, timezone, venue_code, is_active, created_at')
     .eq('id', id)
-    .single();
+    .maybeSingle();
+  if (error) {
+    console.error('[venue detail] getVenue error for id', id, error);
+  }
+  if (!data) {
+    console.error('[venue detail] getVenue found no row for id', id);
+  }
   return data;
 }
 
