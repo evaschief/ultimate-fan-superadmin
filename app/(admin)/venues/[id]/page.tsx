@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import TimezoneEditor from './TimezoneEditor';
 import VenueCodeEditor from './VenueCodeEditor';
 
+export const dynamic = 'force-dynamic';
+
 interface VenueGame {
   id: string;
   joinCode: string;
