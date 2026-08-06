@@ -43,7 +43,7 @@ async function getAuditData(gameId: string) {
   ]);
 
   // bet_id → bet
-  const betById: Record<string, typeof bets[0]> = {};
+  const betById: Record<string, NonNullable<typeof bets>[number]> = {};
   for (const b of bets ?? []) betById[b.bet_id] = b;
 
   // bet_id → resolve timestamp (from game_events)
@@ -56,7 +56,7 @@ async function getAuditData(gameId: string) {
   const allTs = new Set<string>();
   for (const b of bets ?? []) if (b.created_at) allTs.add(b.created_at);
   for (const ts of Object.values(resolveTs)) allTs.add(ts);
-  const sortedTs = [...allTs].sort();
+  const sortedTs = Array.from(allTs).sort();
 
   // uid → name, join time
   const playerNames: Record<string, string> = {};
@@ -70,7 +70,7 @@ async function getAuditData(gameId: string) {
   }
 
   // uid → bet_id → player_bet
-  const pbMap: Record<string, Record<string, typeof playerBets[0]>> = {};
+  const pbMap: Record<string, Record<string, NonNullable<typeof playerBets>[number]>> = {};
   for (const pb of playerBets ?? []) {
     (pbMap[pb.uid] ??= {})[pb.bet_id] = pb;
   }
@@ -118,9 +118,11 @@ async function getAuditData(gameId: string) {
       };
     }
 
-    const pKey = periodKey;
-    const gameClock = openedBet && openedBet[pKey] && openedBet.trigger_clock
-      ? `Q${openedBet[pKey]} ${openedBet.trigger_clock}`
+    // openedBet's shape varies by sport (trigger_quarter for NFL, trigger_period
+    // for NHL), so TS can't statically index it with the dynamic periodKey.
+    const periodValue = openedBet ? (openedBet as Record<string, unknown>)[periodKey] : undefined;
+    const gameClock = openedBet && periodValue && openedBet.trigger_clock
+      ? `Q${periodValue} ${openedBet.trigger_clock}`
       : '—';
 
     return {

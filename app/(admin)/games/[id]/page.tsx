@@ -30,7 +30,7 @@ async function getGameDetail(id: string) {
   ]);
 
   // Per-player stats
-  const historyByUid: Record<string, typeof history[0]> = {};
+  const historyByUid: Record<string, NonNullable<typeof history>[number]> = {};
   for (const h of history ?? []) historyByUid[h.uid] = h;
 
   const pbByPlayer: Record<string, typeof playerBets> = {};

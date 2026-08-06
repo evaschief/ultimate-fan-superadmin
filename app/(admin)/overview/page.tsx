@@ -90,18 +90,22 @@ async function fetchOverviewData(sport: string, simOnly: boolean): Promise<GameM
     }
 
     // Game-time between bets
+    // Bet row shape differs by sport (trigger_quarter for NFL, trigger_period
+    // for NHL), so TS can't statically index it with the dynamic periodKey —
+    // read via an untyped view instead.
+    const period = (row: Record<string, unknown>): number => row[periodKey] as number;
     let avgGameTimeMins = 0;
-    const withClock = gb.filter(b => b.trigger_clock?.includes(':') && b[periodKey]);
+    const withClock = gb.filter(b => b.trigger_clock?.includes(':') && period(b));
     if (withClock.length >= 2) {
       const sorted = [...withClock].sort((a, b) => {
-        const qa = a[periodKey] as number, qb = b[periodKey] as number;
+        const qa = period(a), qb = period(b);
         if (qa !== qb) return qa - qb;
         return clockToElapsed(qa, a.trigger_clock) - clockToElapsed(qb, b.trigger_clock);
       });
       let total = 0;
       for (let i = 1; i < sorted.length; i++) {
-        const e1 = clockToElapsed(sorted[i-1][periodKey] as number, sorted[i-1].trigger_clock);
-        const e2 = clockToElapsed(sorted[i][periodKey] as number, sorted[i].trigger_clock);
+        const e1 = clockToElapsed(period(sorted[i-1]), sorted[i-1].trigger_clock);
+        const e2 = clockToElapsed(period(sorted[i]), sorted[i].trigger_clock);
         total += Math.abs(e2 - e1);
       }
       avgGameTimeMins = total / (sorted.length - 1) / 60;
