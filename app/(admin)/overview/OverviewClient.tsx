@@ -97,9 +97,9 @@ function BreakdownSheet({ title, data, getValue, target, getRaw, onClose }: Brea
                     </div>
                     <p className="text-xs text-secondary">
                       {g.awayTeam && g.homeTeam ? `${g.awayTeam} vs ${g.homeTeam}` : '—'}
-                      {g.createdAt && (
+                      {(g.scheduledAt ?? g.createdAt) && (
                         <span className="text-muted ml-1">
-                          · {new Date(g.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                          · {new Date((g.scheduledAt ?? g.createdAt) as string).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                         </span>
                       )}
                     </p>

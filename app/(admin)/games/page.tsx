@@ -6,7 +6,7 @@ async function getAllGames(): Promise<GameSession[]> {
   try {
     const { data, error } = await supabase
       .from('games')
-      .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, flags, audit_sheet_url')
+      .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, scheduled_at, flags, audit_sheet_url')
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -39,6 +39,7 @@ async function getAllGames(): Promise<GameSession[]> {
       period: row.period ?? '',
       clock: row.clock ?? '',
       createdAt: row.created_at ?? null,
+      scheduledAt: row.scheduled_at ?? null,
       isSim: !!(row.flags?.is_sim),
       auditSheetUrl: row.audit_sheet_url ?? null,
       playerCount: playerCounts[row.id] ?? 0,

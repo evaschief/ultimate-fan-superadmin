@@ -6,7 +6,7 @@ async function getActiveGames(): Promise<GameSession[]> {
   try {
     const { data, error } = await supabase
       .from('games')
-      .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at')
+      .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, scheduled_at')
       .in('status', ['lobby', 'live'])
       .order('created_at', { ascending: false })
       .limit(50);
@@ -25,6 +25,7 @@ async function getActiveGames(): Promise<GameSession[]> {
       period: row.period ?? '',
       clock: row.clock ?? '',
       createdAt: row.created_at ?? null,
+      scheduledAt: row.scheduled_at ?? null,
     }));
   } catch {
     return [];

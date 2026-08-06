@@ -131,8 +131,12 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
             </thead>
             <tbody>
               {filtered.map((game, i) => {
-                const playedAt = game.createdAt
-                  ? new Date(game.createdAt as string).toLocaleString('en-US', {
+                // Prefer the actual scheduled kickoff/puck-drop time; fall
+                // back to row-created time only if scheduled_at is unset
+                // (e.g. older rows created before scheduling was wired up).
+                const gameTime = game.scheduledAt ?? game.createdAt;
+                const playedAt = gameTime
+                  ? new Date(gameTime as string).toLocaleString('en-US', {
                       month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
                     })
                   : null;

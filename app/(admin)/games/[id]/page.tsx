@@ -7,7 +7,7 @@ import SetFinishedButton from './SetFinishedButton';
 async function getGameDetail(id: string) {
   const { data: game } = await supabase
     .from('games')
-    .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, flags, audit_sheet_url')
+    .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, scheduled_at, flags, audit_sheet_url')
     .eq('id', id)
     .single();
 
@@ -109,8 +109,10 @@ export default async function GameDetailPage({ params }: { params: { id: string 
   const { game, playerStats, betStats, totalWagered } = data;
 
   const hasAudit = game.audit_sheet_url && game.audit_sheet_url !== 'creating';
-  const playedAt = game.created_at
-    ? new Date(game.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+  // Prefer the actual scheduled kickoff/puck-drop time over row-created time.
+  const gameTime = game.scheduled_at ?? game.created_at;
+  const playedAt = gameTime
+    ? new Date(gameTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
     : null;
 
   const statusColor =

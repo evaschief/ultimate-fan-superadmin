@@ -9,6 +9,7 @@ export interface GameMetrics {
   sport: string;
   isSim: boolean;
   createdAt: string | null;
+  scheduledAt: string | null;
   betCount: number;
   avgRealTimeMins: number;
   avgGameTimeMins: number;
@@ -24,7 +25,7 @@ export interface GameMetrics {
 async function fetchOverviewData(sport: string, simOnly: boolean): Promise<GameMetrics[]> {
   let query = supabase
     .from('games')
-    .select('id, join_code, sport, home_team, away_team, flags, created_at, status')
+    .select('id, join_code, sport, home_team, away_team, flags, created_at, scheduled_at, status')
     .eq('sport', sport);
 
   if (simOnly) {
@@ -169,6 +170,7 @@ async function fetchOverviewData(sport: string, simOnly: boolean): Promise<GameM
       sport: g.sport,
       isSim: !!(g.flags?.is_sim),
       createdAt: g.created_at ?? null,
+      scheduledAt: g.scheduled_at ?? null,
       betCount: gb.length,
       avgRealTimeMins,
       avgGameTimeMins,

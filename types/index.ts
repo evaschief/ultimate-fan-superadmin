@@ -80,6 +80,10 @@ export interface GameSession {
   period?: string;
   clock?: string;
   createdAt?: string | null;
+  /// Actual scheduled kickoff/puck-drop time (games.scheduled_at), distinct
+  /// from createdAt (when the row was inserted, e.g. when the schedule
+  /// fetch created it, which can be days before the game itself).
+  scheduledAt?: string | null;
   playerCount?: number;
   openBetCount?: number;
 }
