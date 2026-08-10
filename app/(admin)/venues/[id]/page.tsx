@@ -21,16 +21,25 @@ interface VenueGame {
 }
 
 async function getVenue(id: string) {
-  const { data, error } = await supabase
+  // TEMPORARY DIAGNOSTIC — remove once the 404 root cause is confirmed.
+  // Prints which Supabase project/key this deployed function is actually
+  // using, without exposing the real secret value, so we can tell whether
+  // it's silently pointed at the wrong project or the wrong key type.
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '(unset)';
+  const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '(unset)';
+  console.error('[venue detail] DIAGNOSTIC url =', rawUrl,
+    '| key prefix =', rawKey.slice(0, 12), '| key length =', rawKey.length);
+
+  const { data, error, count } = await supabase
     .from('locations')
-    .select('id, name, city, timezone, venue_code, is_active, created_at')
+    .select('id, name, city, timezone, venue_code, is_active, created_at', { count: 'exact' })
     .eq('id', id)
     .maybeSingle();
   if (error) {
     console.error('[venue detail] getVenue error for id', id, error);
   }
   if (!data) {
-    console.error('[venue detail] getVenue found no row for id', id);
+    console.error('[venue detail] getVenue found no row for id', id, '| total locations rows visible to this query:', count);
   }
   return data;
 }

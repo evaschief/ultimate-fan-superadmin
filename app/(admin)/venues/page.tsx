@@ -1,6 +1,16 @@
 import { supabase } from '@/lib/supabase';
 import VenuesClient from './VenuesClient';
 
+// BUG FIX: this list page had no dynamic-rendering directive, so Next.js
+// could serve it from a stale static/cached snapshot after a deploy —
+// meaning a venue row that was later deleted/recreated (getting a new id)
+// could still show up here linking to its OLD id. Clicking through then
+// hit the detail page's force-fetch (which already had `dynamic =
+// 'force-dynamic'`), found no row for that stale id, and 404'd — even
+// though the venue genuinely exists under its current id. Forcing dynamic
+// rendering here too keeps this list always in sync with the live table.
+export const dynamic = 'force-dynamic';
+
 interface Venue {
   id: string;
   name: string;

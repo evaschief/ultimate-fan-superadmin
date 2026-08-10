@@ -73,6 +73,23 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
     return true;
   });
 
+  // Live games first, then lobby (scheduled) games soonest-to-furthest by
+  // kickoff time, then ended games last. Ties within a status group (e.g.
+  // two lobby games with the same scheduled_at, or games with no
+  // scheduled_at at all) fall back to created_at so ordering stays stable.
+  const STATUS_ORDER: Record<string, number> = { live: 0, lobby: 1, ended: 2 };
+  const sorted = [...filtered].sort((a, b) => {
+    const aOrder = STATUS_ORDER[a.status] ?? 3;
+    const bOrder = STATUS_ORDER[b.status] ?? 3;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+
+    const aTime = a.scheduledAt ?? a.createdAt;
+    const bTime = b.scheduledAt ?? b.createdAt;
+    const aMs = aTime ? new Date(aTime as string).getTime() : 0;
+    const bMs = bTime ? new Date(bTime as string).getTime() : 0;
+    return aMs - bMs; // soonest first
+  });
+
   return (
     <div>
       {/* Filters */}
@@ -130,7 +147,7 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
               </tr>
             </thead>
             <tbody>
-              {filtered.map((game, i) => {
+              {sorted.map((game, i) => {
                 // Prefer the actual scheduled kickoff/puck-drop time; fall
                 // back to row-created time only if scheduled_at is unset
                 // (e.g. older rows created before scheduling was wired up).
