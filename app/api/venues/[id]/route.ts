@@ -12,10 +12,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const timezone  = body.timezone !== undefined ? String(body.timezone).trim() : undefined;
-  const venueCode = body.venueCode !== undefined ? String(body.venueCode).trim().toUpperCase() : undefined;
+  const timezone       = body.timezone !== undefined ? String(body.timezone).trim() : undefined;
+  const venueCode      = body.venueCode !== undefined ? String(body.venueCode).trim().toUpperCase() : undefined;
+  const autoClaimGames = body.autoClaimGames !== undefined ? Boolean(body.autoClaimGames) : undefined;
 
-  if (timezone === undefined && venueCode === undefined) {
+  if (timezone === undefined && venueCode === undefined && autoClaimGames === undefined) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
   }
   if (timezone !== undefined && !timezone) {
@@ -37,9 +38,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
   }
 
-  const update: Record<string, string> = {};
+  const update: Record<string, string | boolean> = {};
   if (timezone !== undefined) update.timezone = timezone;
   if (venueCode !== undefined) update.venue_code = venueCode;
+  if (autoClaimGames !== undefined) update.auto_claim_games = autoClaimGames;
 
   const { error } = await supabase
     .from('locations')

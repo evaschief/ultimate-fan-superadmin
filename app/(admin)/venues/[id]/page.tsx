@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import TimezoneEditor from './TimezoneEditor';
 import VenueCodeEditor from './VenueCodeEditor';
+import AutoClaimToggle from './AutoClaimToggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ interface VenueGame {
 async function getVenue(id: string) {
   const { data, error } = await supabase
     .from('locations')
-    .select('id, name, city, timezone, venue_code, is_active, created_at')
+    .select('id, name, city, timezone, venue_code, is_active, created_at, auto_claim_games')
     .eq('id', id)
     .maybeSingle();
   if (error) {
@@ -140,6 +141,7 @@ export default async function VenueSchedulePage({ params }: { params: { id: stri
         <div className="flex items-center gap-3">
           <VenueCodeEditor locationId={venue.id} initialCode={venue.venue_code ?? ''} />
           <TimezoneEditor locationId={venue.id} initialTimezone={venue.timezone ?? 'America/New_York'} />
+          <AutoClaimToggle locationId={venue.id} initialValue={venue.auto_claim_games ?? false} />
           {venue.is_active ? (
             <span className="text-xs bg-success/10 text-success border border-success/30 px-2 py-0.5 rounded-full font-semibold">Active</span>
           ) : (
