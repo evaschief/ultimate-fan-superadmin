@@ -4,14 +4,24 @@ import GamesClient from './GamesClient';
 
 async function getAllGames(): Promise<GameSession[]> {
   try {
-    // Fetched wider than the ~100 rows this list actually shows: the bulk of
-    // the `games` table is prepopulated future schedule rows (see
-    // schedule-games' assignCodes:false path) which get filtered out below
-    // for having no stored data, so a 100-row window would leave only a
-    // handful of real games visible.
+    // Only games that have a join_code — the code assigned when the game was
+    // actually created for play.
+    //
+    // Without this the list showed apparent duplicates: the same matchup at the
+    // same kickoff appearing twice, once under its real code and once as "Code
+    // not assigned yet" with 0 players. They are two distinct `games` rows —
+    // the coded one carries a location_id (the venue that claimed it) while the
+    // twin has none, i.e. the leftover prepopulated schedule row from
+    // schedule-games' assignCodes:false path. Nine such pairs existed at the
+    // time of writing. Requiring a join_code keeps the row players actually
+    // joined and drops the shadow.
+    //
+    // Fetched wider than the rows this list shows because the data filter below
+    // still trims further, and most of the table is these codeless rows.
     const { data, error } = await supabase
       .from('games')
       .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, scheduled_at, flags, audit_sheet_url')
+      .not('join_code', 'is', null)
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -89,7 +99,7 @@ export default async function GamesPage() {
       <div className="mb-4">
         <h1 className="text-lg font-semibold text-gray-900">All Games</h1>
         <p className="text-secondary text-sm mt-1">
-          Games with recorded data — live, lobby, and ended
+          Games with a join code and recorded data — live, lobby, and ended
         </p>
       </div>
       <GamesClient initialGames={games} />
