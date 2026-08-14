@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import GameHeader, { getGame } from '../GameHeader';
+import GameHeader, { getEventCounts, getGame } from '../GameHeader';
 import { GAME_EVENT_COLUMNS, RawEventRow } from '../eventFormat';
 import EventTable from '../EventTable';
 
@@ -23,11 +23,13 @@ export default async function RawEventsPage({ params }: { params: { id: string }
   const game = await getGame(params.id);
   if (!game) notFound();
 
+  const counts = await getEventCounts(game.id);
+
   const events = await getRawEvents(game.id);
 
   return (
     <div className="p-5 pb-10 max-w-6xl">
-      <GameHeader game={game} active="raw-events" />
+      <GameHeader game={game} active="raw-events" counts={counts} />
       <p className="text-secondary text-sm mb-1">
         Every row written to <span className="font-mono">game_events</span> for this game, in
         write order — nothing filtered out.

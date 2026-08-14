@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import { supabase } from '@/lib/supabase';
 import GenerateRosterButton from './GenerateRosterButton';
 import SetFinishedButton from './SetFinishedButton';
+import RecordingToggle from './RecordingToggle';
 
 // Shared header + tab bar for every game detail view. Deliberately a plain
 // component rather than a `layout.tsx`, because a layout at this segment
@@ -26,7 +27,23 @@ export interface GameRow {
   created_at: string | null;
   scheduled_at: string | null;
   audit_sheet_url: string | null;
+  poller_enabled: boolean | null;
+  auto_activate: boolean | null;
   flags: { is_sim?: boolean } | null;
+}
+
+/** Rows written for this game, so a game recording nothing is visible at a glance. */
+export interface EventCounts {
+  gameEvents: number;
+  rawEvents: number;
+}
+
+export async function getEventCounts(gameId: string): Promise<EventCounts> {
+  const [{ count: gameEvents }, { count: rawEvents }] = await Promise.all([
+    supabase.from('game_events').select('id', { count: 'exact', head: true }).eq('game_code', gameId),
+    supabase.from('raw_events').select('id', { count: 'exact', head: true }).eq('game_code', gameId),
+  ]);
+  return { gameEvents: gameEvents ?? 0, rawEvents: rawEvents ?? 0 };
 }
 
 export async function getGame(id: string): Promise<GameRow | null> {
@@ -34,7 +51,7 @@ export async function getGame(id: string): Promise<GameRow | null> {
   // handle, not a query error to log (same reasoning as the venue detail page).
   const { data } = await supabase
     .from('games')
-    .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, scheduled_at, flags, audit_sheet_url')
+    .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, scheduled_at, flags, audit_sheet_url, poller_enabled, auto_activate')
     .eq('id', id)
     .maybeSingle();
   return (data as GameRow) ?? null;
@@ -79,7 +96,7 @@ function Tabs({ gameId, active }: { gameId: string; active: GameTab }) {
   );
 }
 
-export default function GameHeader({ game, active }: { game: GameRow; active: GameTab }) {
+export default function GameHeader({ game, active, counts }: { game: GameRow; active: GameTab; counts?: EventCounts }) {
   const hasAudit = game.audit_sheet_url && game.audit_sheet_url !== 'creating';
   // Prefer the actual scheduled kickoff/puck-drop time over row-created time.
   const gameTime = game.scheduled_at ?? game.created_at;
@@ -129,6 +146,25 @@ export default function GameHeader({ game, active }: { game: GameRow; active: Ga
             )}
           </div>
         </div>
+      </div>
+
+      {/* Recording state — poller_enabled is what decides whether this game
+          writes any events at all, and it is invisible everywhere else. */}
+      <div className="flex items-center gap-3 flex-wrap mb-4">
+        <RecordingToggle
+          gameId={game.id}
+          pollerEnabled={game.poller_enabled === true}
+          autoActivate={game.auto_activate === true}
+          status={game.status}
+        />
+        {counts && (
+          <span className="text-xs text-secondary font-mono">
+            {counts.gameEvents.toLocaleString()} game_events · {counts.rawEvents.toLocaleString()} raw_events
+          </span>
+        )}
+        {counts && counts.gameEvents === 0 && game.status === 'ended' && (
+          <span className="text-xs text-danger">this game ended without recording a single event</span>
+        )}
       </div>
 
       {/* Score */}

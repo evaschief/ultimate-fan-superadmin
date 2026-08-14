@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import GameHeader, { getGame } from '../GameHeader';
+import GameHeader, { getEventCounts, getGame } from '../GameHeader';
 import { GAME_EVENT_COLUMNS, RawEventRow, isGameplayEvent } from '../eventFormat';
 import EventTable from '../EventTable';
 
@@ -24,11 +24,13 @@ export default async function GameEventsPage({ params }: { params: { id: string 
   const game = await getGame(params.id);
   if (!game) notFound();
 
+  const counts = await getEventCounts(game.id);
+
   const events = await getGameplayEvents(game.id);
 
   return (
     <div className="p-5 pb-10 max-w-6xl">
-      <GameHeader game={game} active="events" />
+      <GameHeader game={game} active="events" counts={counts} />
       <p className="text-secondary text-sm mb-1">
         What happened on the field, in order — scoring plays, stat lines, period boundaries.
         Bet and fantasy-scoring rows are on the Raw Events tab.

@@ -22,7 +22,7 @@ async function getAllGames(): Promise<GameSession[]> {
     // N512, N383, ARCA) stay visible.
     const { data, error } = await supabase
       .from('games')
-      .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, scheduled_at, location_id, flags, audit_sheet_url')
+      .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, scheduled_at, location_id, flags, audit_sheet_url, poller_enabled')
       .or('location_id.not.is.null,join_code.not.is.null')
       .order('created_at', { ascending: false })
       .limit(500);
@@ -91,6 +91,9 @@ async function getAllGames(): Promise<GameSession[]> {
       createdAt: row.created_at ?? null,
       scheduledAt: row.scheduled_at ?? null,
       isSim: !!(row.flags?.is_sim),
+      // False means the poller will skip this game once live, so it records no
+      // events at all — worth flagging here rather than only on the detail page.
+      recording: row.poller_enabled === true,
       auditSheetUrl: row.audit_sheet_url ?? null,
       playerCount: playerCounts[row.id] ?? 0,
     }));

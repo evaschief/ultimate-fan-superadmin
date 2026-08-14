@@ -61,7 +61,7 @@ function DeleteButton({ gameId, onDeleted }: { gameId: string; onDeleted: () => 
   );
 }
 
-export default function GamesClient({ initialGames }: { initialGames: (GameSession & { isSim?: boolean; auditSheetUrl?: string | null })[] }) {
+export default function GamesClient({ initialGames }: { initialGames: (GameSession & { isSim?: boolean; auditSheetUrl?: string | null; recording?: boolean })[] }) {
   const router = useRouter();
   const [games, setGames] = useState(initialGames);
   const [filter, setFilter] = useState<string>('all');
@@ -179,6 +179,16 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
                         )}
                         {game.isSim && (
                           <span className="text-xs bg-amber-dim text-amber border border-amber-border px-1.5 py-0.5 rounded">SIM</span>
+                        )}
+                        {game.recording === false && game.status !== 'ended' && (
+                          // poller_enabled is off: this game will play and record
+                          // nothing. Only worth warning about while it still can.
+                          <span
+                            title="Recording is off (poller_enabled). This game will not write any events."
+                            className="text-xs bg-danger/5 text-danger border border-danger/30 px-1.5 py-0.5 rounded"
+                          >
+                            NOT RECORDING
+                          </span>
                         )}
                       </div>
                       <div className="text-xs text-secondary mt-0.5">

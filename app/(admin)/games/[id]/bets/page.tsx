@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ROSTER_TABLE } from '@/lib/tables';
-import GameHeader, { getGame, betTables } from '../GameHeader';
+import GameHeader, { getEventCounts, getGame, betTables } from '../GameHeader';
 
 async function getBetStats(gameId: string, sport: string | null) {
   const { bets: betsTable, playerBets: playerBetsTable } = betTables(sport);
@@ -83,11 +83,13 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
   const game = await getGame(params.id);
   if (!game) notFound();
 
+  const counts = await getEventCounts(game.id);
+
   const { stats, totalWagered, settled, voided, unresolved, avgParticipation } = await getBetStats(game.id, game.sport);
 
   return (
     <div className="p-5 pb-10 max-w-5xl">
-      <GameHeader game={game} active="bets" />
+      <GameHeader game={game} active="bets" counts={counts} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <StatCard label="Bets" value={stats.length} />
