@@ -1,12 +1,65 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { GameSession } from '@/types';
 import clsx from 'clsx';
 
 const STATUS_FILTERS = ['all', 'live', 'lobby', 'ended'] as const;
+
+// Off by default: this only earns its keep while a game night is running, and a
+// page that reloads itself unprompted is worse than one that doesn't.
+const REFRESH_CHOICES = [
+  { label: 'Off', seconds: 0 },
+  { label: '10s', seconds: 10 },
+  { label: '30s', seconds: 30 },
+  { label: '2m',  seconds: 120 },
+] as const;
+
+function AutoRefresh({ onRefresh }: { onRefresh: () => void }) {
+  const [seconds, setSeconds] = useState(0);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
+  useEffect(() => {
+    if (seconds === 0) return;
+    const timer = window.setInterval(() => {
+      onRefresh();
+      setLastRefresh(new Date());
+    }, seconds * 1000);
+    return () => window.clearInterval(timer);
+  }, [seconds, onRefresh]);
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted">Auto-refresh</span>
+      <div className="flex gap-1">
+        {REFRESH_CHOICES.map(choice => (
+          <button
+            key={choice.label}
+            onClick={() => { setSeconds(choice.seconds); setLastRefresh(null); }}
+            className={clsx(
+              'px-2 py-1 rounded-md text-xs font-semibold border transition-colors',
+              seconds === choice.seconds
+                ? 'bg-amber-dim text-amber border-amber-border'
+                : 'bg-white text-secondary border-border hover:border-amber'
+            )}
+          >
+            {choice.label}
+          </button>
+        ))}
+      </div>
+      {seconds > 0 && (
+        <span className="flex items-center gap-1.5 text-xs text-success">
+          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          {lastRefresh
+            ? `updated ${lastRefresh.toLocaleTimeString('en-US', { hour12: false })}`
+            : 'live'}
+        </span>
+      )}
+    </div>
+  );
+}
 
 function StatusBadge({ status }: { status: string }) {
   return (
@@ -61,7 +114,7 @@ function DeleteButton({ gameId, onDeleted }: { gameId: string; onDeleted: () => 
   );
 }
 
-export default function GamesClient({ initialGames }: { initialGames: (GameSession & { isSim?: boolean; auditSheetUrl?: string | null; recording?: boolean })[] }) {
+export default function GamesClient({ initialGames }: { initialGames: (GameSession & { isSim?: boolean; auditSheetUrl?: string | null; recording?: boolean; gameEvents?: number; rawEvents?: number })[] }) {
   const router = useRouter();
   const [games, setGames] = useState(initialGames);
   const [filter, setFilter] = useState<string>('all');
@@ -73,29 +126,28 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
     return true;
   });
 
-  // Live games first, then lobby (scheduled), then ended. Within a group,
-  // direction depends on whether the games are ahead of or behind us:
-  // ended games run newest-first, so the game that just finished is at the top
-  // instead of buried under months of history, while lobby games stay
-  // soonest-first so the next kickoff leads rather than the furthest-away one.
-  // Ties (two lobby games at the same scheduled_at, or rows with no
-  // scheduled_at at all) fall back to created_at so ordering stays stable.
-  const STATUS_ORDER: Record<string, number> = { live: 0, lobby: 1, ended: 2 };
-  const ENDED_ORDER = 2;
+  // Newest first, flat — the console's default ordering everywhere. Status no
+  // longer groups the list: a game scheduled for tonight sorts above one played
+  // yesterday because it is the more recent, which is what you want while a
+  // game night is in progress. Rows with no scheduled_at fall back to
+  // created_at so ordering stays stable.
   const sorted = [...filtered].sort((a, b) => {
-    const aOrder = STATUS_ORDER[a.status] ?? 3;
-    const bOrder = STATUS_ORDER[b.status] ?? 3;
-    if (aOrder !== bOrder) return aOrder - bOrder;
-
     const aTime = a.scheduledAt ?? a.createdAt;
     const bTime = b.scheduledAt ?? b.createdAt;
     const aMs = aTime ? new Date(aTime as string).getTime() : 0;
     const bMs = bTime ? new Date(bTime as string).getTime() : 0;
-    return aOrder === ENDED_ORDER ? bMs - aMs : aMs - bMs;
+    return bMs - aMs;
   });
 
   return (
     <div>
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        <AutoRefresh onRefresh={() => router.refresh()} />
+        <span className="text-muted text-xs">
+          Event counts update on refresh — watch them climb once a game goes live.
+        </span>
+      </div>
+
       {/* Filters */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="flex gap-1.5">
@@ -147,6 +199,7 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
                 <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Score</th>
                 <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Status</th>
                 <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Total Players</th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Events</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -203,6 +256,26 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
                     <td className="px-3 py-2"><StatusBadge status={game.status} /></td>
                     <td className="px-3 py-2 text-secondary">
                       {game.playerCount ?? 0}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-xs whitespace-nowrap">
+                      {game.gameEvents === undefined ? (
+                        <span className="text-muted">—</span>
+                      ) : (
+                        <>
+                          <span className={game.gameEvents > 0 ? 'text-gray-900' : 'text-muted'}>
+                            {game.gameEvents.toLocaleString()}
+                          </span>
+                          <span className="text-muted"> · </span>
+                          <span className={game.rawEvents ? 'text-secondary' : 'text-muted'}>
+                            {(game.rawEvents ?? 0).toLocaleString()}
+                          </span>
+                          {/* Feed arriving but nothing processed on top of it —
+                              the one divergence worth catching mid-game. */}
+                          {(game.rawEvents ?? 0) > 0 && game.gameEvents === 0 && (
+                            <div className="text-danger text-[10px]">not processing</div>
+                          )}
+                        </>
+                      )}
                     </td>
                     <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-3 justify-end">

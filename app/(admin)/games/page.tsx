@@ -71,7 +71,24 @@ async function getAllGames(): Promise<GameSession[]> {
       }
     }
 
-    return data.filter(row => row.status !== 'ended' || gamesWithData.has(row.id)).map(row => ({
+    const shown = data.filter(row => row.status !== 'ended' || gamesWithData.has(row.id));
+
+    // Event counts per shown game. Deliberately head-only count queries rather
+    // than pulling game_code for every row: this list auto-refreshes, and the
+    // events tables grow every game, so the cost has to scale with the number of
+    // games on screen rather than with the number of events ever recorded.
+    const eventCounts: Record<string, { game: number; raw: number }> = {};
+    await Promise.all(shown.flatMap(row => {
+      eventCounts[row.id] = { game: 0, raw: 0 };
+      return [
+        supabase.from('game_events').select('id', { count: 'exact', head: true })
+          .eq('game_code', row.id).then(r => { eventCounts[row.id].game = r.count ?? 0; }),
+        supabase.from('raw_events').select('id', { count: 'exact', head: true })
+          .eq('game_code', row.id).then(r => { eventCounts[row.id].raw = r.count ?? 0; }),
+      ];
+    }));
+
+    return shown.map(row => ({
       id: row.id,
       // A venue game scheduled for a future date legitimately has no join_code
       // yet: assignCodesForToday() hands out codes day-of, so the code appears
@@ -94,6 +111,8 @@ async function getAllGames(): Promise<GameSession[]> {
       // False means the poller will skip this game once live, so it records no
       // events at all — worth flagging here rather than only on the detail page.
       recording: row.poller_enabled === true,
+      gameEvents: eventCounts[row.id]?.game ?? 0,
+      rawEvents: eventCounts[row.id]?.raw ?? 0,
       auditSheetUrl: row.audit_sheet_url ?? null,
       playerCount: playerCounts[row.id] ?? 0,
     }));

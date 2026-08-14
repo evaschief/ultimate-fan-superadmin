@@ -13,7 +13,7 @@ async function getRawEvents(gameId: string): Promise<RawEventRow[]> {
     .from('game_events')
     .select('*')
     .eq('game_code', gameId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(3000);
 
   return (data ?? []) as unknown as RawEventRow[];

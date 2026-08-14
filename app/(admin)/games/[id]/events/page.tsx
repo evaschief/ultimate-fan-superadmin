@@ -14,7 +14,7 @@ async function getGameplayEvents(gameId: string): Promise<RawEventRow[]> {
     .from('game_events')
     .select('*')
     .eq('game_code', gameId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(3000);
 
   return ((data ?? []) as unknown as RawEventRow[]).filter(isGameplayEvent);
@@ -32,7 +32,7 @@ export default async function GameEventsPage({ params }: { params: { id: string 
     <div className="p-5 pb-10 max-w-6xl">
       <GameHeader game={game} active="events" counts={counts} />
       <p className="text-secondary text-sm mb-1">
-        What happened on the field, in order — scoring plays, stat lines, period boundaries.
+        What happened on the field, newest first — scoring plays, stat lines, period boundaries.
         Bet and fantasy-scoring rows are on the Raw Events tab.
       </p>
       <p className="text-muted text-xs mb-3">

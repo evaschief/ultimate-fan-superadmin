@@ -10,7 +10,7 @@ async function getBetStats(gameId: string, sport: string | null) {
     supabase.from(betsTable)
       .select('bet_id, question, option_a, option_b, status, winning_option, created_at')
       .eq('game_code', gameId)
-      .order('created_at'),
+      .order('created_at', { ascending: false }),
     supabase.from(playerBetsTable)
       .select('uid, bet_id, pick, amount, status')
       .eq('game_code', gameId),
