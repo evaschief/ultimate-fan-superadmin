@@ -20,6 +20,16 @@ export default function EventTable({
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [hideEmpty, setHideEmpty] = useState(false);
   const [search, setSearch] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleRow(id: string) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   // `game_stat` outnumbers everything else roughly 3:1, so the type filter is
   // what makes either view readable — chips are ordered by frequency. Labels are
@@ -122,13 +132,17 @@ export default function EventTable({
         </span>
       </div>
 
+      <p className="text-muted text-xs mb-2">
+        Click a row number, or a truncated value, to open the full record below it.
+      </p>
+
       {/* 36 columns will never fit a pane, so the table scrolls sideways and the
           row number stays pinned to keep your place. */}
       <div className="card p-0 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-gray-50">
-              <th className="sticky left-0 z-10 bg-gray-50 px-3 py-1.5 w-14" />
+              <th className="sticky left-0 z-10 bg-gray-50 px-3 py-1.5 w-16" />
               {groups.map((g, i) => (
                 <th
                   key={g.group}
@@ -143,7 +157,7 @@ export default function EventTable({
               ))}
             </tr>
             <tr className="border-b border-border bg-gray-50">
-              <th className="sticky left-0 z-10 bg-gray-50 text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider w-14">#</th>
+              <th className="sticky left-0 z-10 bg-gray-50 text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider w-16">#</th>
               {columns.map(col => (
                 <th
                   key={col.key}
@@ -158,55 +172,87 @@ export default function EventTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row, i) => (
-              <tr
-                key={row.id}
-                className={clsx(
-                  'border-b border-border last:border-0 align-top',
-                  i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                )}
-              >
-                <td className={clsx(
-                  'sticky left-0 z-10 px-3 py-2 text-right font-mono text-xs text-muted tabular-nums',
-                  i % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                )}>
-                  {i + 1}
-                </td>
-                {columns.map(col => {
-                  const text = cellText(col.key, row[col.key]);
+            {filtered.map((row, i) => {
+              const isOpen = expanded.has(row.id);
+              const zebra = i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
+              const stickyZebra = i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
 
-                  // event_data is the one value a single line can't carry, so it
-                  // expands in place to the pretty-printed payload.
-                  if (col.key === 'event_data' && text !== null) {
+              return [
+                <tr key={row.id} className={clsx('border-b border-border align-top', zebra)}>
+                  <td className={clsx(
+                    'sticky left-0 z-10 px-2 py-2 text-right',
+                    isOpen ? 'bg-amber-dim' : stickyZebra
+                  )}>
+                    <button
+                      onClick={() => toggleRow(row.id)}
+                      aria-expanded={isOpen}
+                      aria-label={`${isOpen ? 'Hide' : 'Show'} full record for row ${i + 1}`}
+                      className="flex items-center gap-1 ml-auto font-mono text-xs text-muted hover:text-amber transition-colors tabular-nums"
+                    >
+                      <svg
+                        viewBox="0 0 12 12"
+                        className={clsx('w-2.5 h-2.5 transition-transform', isOpen && 'rotate-90')}
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d="M4 2l5 4-5 4z" />
+                      </svg>
+                      {i + 1}
+                    </button>
+                  </td>
+                  {columns.map(col => {
+                    const text = cellText(col.key, row[col.key]);
+                    const clipped = text !== null && text.length > MAX_CELL;
                     return (
-                      <td key={col.key} className="px-3 py-2">
-                        <details>
-                          <summary className="cursor-pointer font-mono text-xs text-secondary hover:text-gray-900 whitespace-nowrap">
-                            {text.length > MAX_CELL ? `${text.slice(0, MAX_CELL)}…` : text}
-                          </summary>
-                          <pre className="mt-2 bg-gray-50 border border-border rounded-md p-2 text-xs font-mono text-gray-900 whitespace-pre">
-{JSON.stringify(row.event_data, null, 2)}
-                          </pre>
-                        </details>
+                      <td
+                        key={col.key}
+                        className={clsx(
+                          'px-3 py-2 font-mono text-xs whitespace-nowrap',
+                          clipped ? 'text-gray-900 cursor-pointer hover:text-amber' : 'text-gray-900'
+                        )}
+                        title={clipped ? 'Click to open the full record' : undefined}
+                        onClick={clipped ? () => toggleRow(row.id) : undefined}
+                      >
+                        {text === null
+                          ? <span className="text-muted">—</span>
+                          : clipped ? `${text.slice(0, MAX_CELL)}…` : text}
                       </td>
                     );
-                  }
+                  })}
+                </tr>,
 
-                  const clipped = text !== null && text.length > MAX_CELL;
-                  return (
-                    <td
-                      key={col.key}
-                      className="px-3 py-2 font-mono text-xs text-gray-900 whitespace-nowrap"
-                      title={clipped ? text! : undefined}
-                    >
-                      {text === null
-                        ? <span className="text-muted">—</span>
-                        : clipped ? `${text.slice(0, MAX_CELL)}…` : text}
+                // The full record, opened in place. The panel is sticky to the
+                // left edge of the scroll container so it stays readable however
+                // far right the table has been scrolled — otherwise a detail
+                // panel inside a 6,000px-wide cell sits off-screen.
+                isOpen && (
+                  <tr key={`${row.id}-detail`} className={clsx('border-b border-border', zebra)}>
+                    <td colSpan={columns.length + 1} className="p-0">
+                      <div className="sticky left-0 w-[min(58rem,92vw)] px-4 py-3">
+                        <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1">
+                          event_data · row {i + 1} · {row.event_type}
+                        </p>
+                        <pre className="bg-white border border-border rounded-md p-3 text-xs font-mono text-gray-900 whitespace-pre-wrap break-words max-h-80 overflow-y-auto">
+{row.event_data ? JSON.stringify(row.event_data, null, 2) : 'null'}
+                        </pre>
+
+                        {/* Any other column whose value was too long for its cell. */}
+                        {columns
+                          .filter(c => c.key !== 'event_data')
+                          .map(c => ({ key: c.key, text: cellText(c.key, row[c.key]) }))
+                          .filter(v => v.text !== null && v.text.length > MAX_CELL)
+                          .map(v => (
+                            <div key={v.key} className="mt-2">
+                              <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1">{v.key}</p>
+                              <p className="bg-white border border-border rounded-md p-2 text-xs font-mono text-gray-900 break-words">{v.text}</p>
+                            </div>
+                          ))}
+                      </div>
                     </td>
-                  );
-                })}
-              </tr>
-            ))}
+                  </tr>
+                ),
+              ];
+            })}
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={columns.length + 1} className="px-3 py-8 text-center text-muted">
