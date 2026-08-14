@@ -121,6 +121,119 @@ function AddSuperadminModal({ onClose, onCreated }: { onClose: () => void; onCre
   );
 }
 
+function ChangePasswordModal({ user, onClose }: { user: AdminUser; onClose: () => void }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (password !== confirm) {
+      setError('Passwords do not match');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/users/${user.uid}/password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? 'Something went wrong');
+        setSubmitting(false);
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError('Network error — try again');
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="px-5 pt-5 pb-3 border-b border-border flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900">Change Password</h2>
+          <button onClick={onClose} className="text-muted hover:text-gray-900 transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {done ? (
+          <div className="px-5 py-6 space-y-3">
+            <p className="text-sm text-gray-900">
+              Password updated for <span className="font-medium">{user.email || user.uid}</span>.
+            </p>
+            <p className="text-xs text-muted">
+              Share the new password with them directly — it&apos;s hashed by the database and
+              can&apos;t be read back. Any session they already have stays signed in until it
+              expires; only revoking the account ends it immediately.
+            </p>
+            <button
+              onClick={onClose}
+              className="w-full px-3 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-800"
+            >
+              Done
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="px-5 py-4 space-y-3">
+            <p className="text-xs text-secondary">
+              Setting a new password for <span className="font-medium text-gray-900">{user.email || user.uid}</span>
+              {' '}({user.role}).
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-secondary mb-1">New password</label>
+              <input
+                type="password" required minLength={8} value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-secondary mb-1">Confirm new password</label>
+              <input
+                type="password" required minLength={8} value={confirm} onChange={e => setConfirm(e.target.value)}
+                placeholder="Repeat the password"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <p className="text-xs text-muted">
+              The old password is replaced immediately. Existing sessions are not signed out.
+            </p>
+
+            {error && <p className="text-sm text-danger">{error}</p>}
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button" onClick={onClose}
+                className="flex-1 px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-secondary hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit" disabled={submitting}
+                className="flex-1 px-3 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50"
+              >
+                {submitting ? 'Saving…' : 'Change Password'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RevokeButton({ user, onRevoked }: { user: AdminUser; onRevoked: () => void }) {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -179,6 +292,7 @@ function RevokeButton({ user, onRevoked }: { user: AdminUser; onRevoked: () => v
 export default function UsersClient({ users, envEmails }: { users: AdminUser[]; envEmails: string[] }) {
   const router = useRouter();
   const [showAdd, setShowAdd] = useState(false);
+  const [changingFor, setChangingFor] = useState<AdminUser | null>(null);
   const [rows, setRows] = useState(users);
 
   const superadmins = rows.filter(u => u.role === 'superadmin');
@@ -264,14 +378,22 @@ export default function UsersClient({ users, envEmails }: { users: AdminUser[]; 
                       : '—'}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {u.role === 'superadmin' ? (
-                      <RevokeButton
-                        user={u}
-                        onRevoked={() => setRows(prev => prev.filter(r => r.uid !== u.uid))}
-                      />
-                    ) : (
-                      <span className="text-xs text-muted">managed with venue</span>
-                    )}
+                    <div className="flex items-center gap-3 justify-end">
+                      <button
+                        onClick={() => setChangingFor(u)}
+                        className="text-xs text-secondary hover:text-amber transition-colors whitespace-nowrap"
+                      >
+                        Change password
+                      </button>
+                      {u.role === 'superadmin' ? (
+                        <RevokeButton
+                          user={u}
+                          onRevoked={() => setRows(prev => prev.filter(r => r.uid !== u.uid))}
+                        />
+                      ) : (
+                        <span className="text-xs text-muted whitespace-nowrap">venue-managed</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -283,16 +405,23 @@ export default function UsersClient({ users, envEmails }: { users: AdminUser[]; 
       <p className="text-xs text-muted mt-3 max-w-2xl">
         Superadmins sign in with the email and password set here, verified against the
         database. Accounts tagged ENV can also sign in with the shared
-        <span className="font-mono"> ADMIN_PASSWORD</span> from the environment.
-        Changing an existing password isn&apos;t possible from this screen — the database
-        refuses to overwrite a set password outside the emailed reset flow, so revoke the
-        account and recreate it instead.
+        <span className="font-mono"> ADMIN_PASSWORD</span> from the environment, which no
+        password change here affects. Changing a password replaces it immediately but does
+        not sign out sessions that are already open — to cut off access right now, revoke
+        the account.
       </p>
 
       {showAdd && (
         <AddSuperadminModal
           onClose={() => setShowAdd(false)}
           onCreated={() => { setShowAdd(false); router.refresh(); }}
+        />
+      )}
+
+      {changingFor && (
+        <ChangePasswordModal
+          user={changingFor}
+          onClose={() => { setChangingFor(null); router.refresh(); }}
         />
       )}
     </div>
