@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { ROSTER_TABLE } from '@/lib/tables';
 import GameHeader, { getGame, betTables } from '../GameHeader';
 
 async function getBetStats(gameId: string, sport: string | null) {
@@ -13,7 +14,7 @@ async function getBetStats(gameId: string, sport: string | null) {
     supabase.from(playerBetsTable)
       .select('uid, bet_id, pick, amount, status')
       .eq('game_code', gameId),
-    supabase.from('players')
+    supabase.from(ROSTER_TABLE)
       .select('uid', { count: 'exact', head: true })
       .eq('game_code', gameId),
   ]);

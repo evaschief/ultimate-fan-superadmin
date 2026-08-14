@@ -1,12 +1,13 @@
 import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { ROSTER_TABLE } from '@/lib/tables';
 import GameHeader, { getGame, betTables } from './GameHeader';
 
 async function getPlayerStats(gameId: string, sport: string | null) {
   const { playerBets } = betTables(sport);
 
   const [{ data: players }, { data: bets }, { data: history }] = await Promise.all([
-    supabase.from('players').select('uid, display_name, balance, locked_amount').eq('game_code', gameId),
+    supabase.from(ROSTER_TABLE).select('uid, display_name, balance, locked_amount').eq('game_code', gameId),
     supabase.from(playerBets).select('uid, bet_id, pick, amount, status').eq('game_code', gameId),
     supabase.from('game_history').select('uid, final_balance, is_eliminated').eq('game_code', gameId),
   ]);

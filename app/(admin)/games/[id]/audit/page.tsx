@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { ROSTER_TABLE } from '@/lib/tables';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 
@@ -137,7 +138,7 @@ async function getAuditData(gameId: string) {
   const fantasyByUid: Record<string, number> = {};
   // Build rosterPlayerId → uid via player lineup stored in players table
   const { data: players } = await supabase
-    .from('players')
+    .from(ROSTER_TABLE)
     .select('uid, lineup')
     .eq('game_code', gameId);
   const rosterIdToUid: Record<string, string> = {};

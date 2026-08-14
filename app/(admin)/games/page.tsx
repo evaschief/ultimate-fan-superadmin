@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { ROSTER_TABLE } from '@/lib/tables';
 import { GameSession } from '@/types';
 import GamesClient from './GamesClient';
 
@@ -55,7 +56,7 @@ async function getAllGames(): Promise<GameSession[]> {
         { data: nflBetRows },
         { data: nhlBetRows },
       ] = await Promise.all([
-        supabase.from('players').select('game_code').in('game_code', gameIds),
+        supabase.from(ROSTER_TABLE).select('game_code').in('game_code', gameIds),
         supabase.from('game_history').select('game_code').in('game_code', gameIds),
         supabase.from('nfl_bets').select('game_code').in('game_code', gameIds),
         supabase.from('nhl_bets').select('game_code').in('game_code', gameIds),

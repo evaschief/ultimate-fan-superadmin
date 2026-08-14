@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { ROSTER_TABLE } from '@/lib/tables';
 import { getAdminSession } from '@/lib/session';
 
 export async function DELETE(
@@ -18,7 +19,7 @@ export async function DELETE(
   const playerBetsTable = sport === 'NHL' ? 'nhl_player_bets' : 'nfl_player_bets';
 
   await Promise.all([
-    supabase.from('players').delete().eq('game_code', id),
+    supabase.from(ROSTER_TABLE).delete().eq('game_code', id),
     supabase.from(betsTable).delete().eq('game_code', id),
     supabase.from(playerBetsTable).delete().eq('game_code', id),
     supabase.from('game_events').delete().eq('game_code', id),
