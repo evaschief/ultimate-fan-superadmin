@@ -1,12 +1,11 @@
-// Shared read/format helpers for the `game_events` table, used by both the
-// Game Events and Raw Events views.
+// Shared read/format helpers for the `game_events` table, used by both the Game
+// Events and Raw Events views.
 //
-// IMPORTANT: everything meaningful lives in the `event_data` JSON blob. The
-// table also has a wide set of flat ESPN-shaped columns (period, clock, team,
-// play_text, type_text, home_score, yards, start_down, …) but they are
-// unpopulated on every row currently in the table — the only flat column ever
-// set is `player`, and only on some rows. So all display values are read out
-// of event_data, with the flat column used purely as a fallback.
+// Worth knowing before reading either view: of the table's 36 columns, only ten
+// ever carry a value. The flat play-by-play set (period, clock, team, play_text,
+// type_text, home_score, yards, start_down, …) is unwritten on every row in the
+// table — nothing that currently runs populates it — so the substance of an
+// event lives in the `event_data` JSON blob instead.
 
 export interface RawEvent {
   id: string;
@@ -20,14 +19,95 @@ export interface RawEvent {
 }
 
 /**
- * The whole row, every column, exactly as stored — what the Raw Events view
- * renders when a payload is expanded, so it mirrors the table in Supabase
- * rather than a chosen subset.
+ * The whole row, every column, exactly as stored — both event views select * so
+ * they mirror the table rather than a chosen subset.
  */
 export type RawEventRow = RawEvent & Record<string, unknown>;
 
-export const RAW_EVENT_COLUMNS =
-  'id, event_type, event_id, bet_id, winning_option, created_at, player, event_data';
+/**
+ * Every column on `game_events`, in reading order rather than physical order,
+ * grouped the way the schema is actually reasoned about. All 36 columns of the
+ * live table are listed; a column added to the database later has to be added
+ * here too, or it simply won't appear in the view.
+ *
+ * Not columns, despite appearing in some schema notes: `event_key` (not on the
+ * table) and `fired_at` (never existed — the emit time is at event_data.firedAt).
+ */
+export interface EventColumn {
+  key: string;
+  group: string;
+}
+
+export const GAME_EVENT_COLUMNS: EventColumn[] = [
+  { key: 'id',                     group: 'Identity' },
+  { key: 'event_id',               group: 'Identity' },
+
+  { key: 'game_code',              group: 'Game linkage' },
+  { key: 'game_id',                group: 'Game linkage' },
+
+  { key: 'event_type',             group: 'Classification' },
+  { key: 'type_slug',              group: 'Classification' },
+  { key: 'type_abbreviation',      group: 'Classification' },
+  { key: 'type_text',              group: 'Classification' },
+  { key: 'play_text',              group: 'Classification' },
+  { key: 'short_text',             group: 'Classification' },
+
+  { key: 'bet_id',                 group: 'Bet linkage' },
+  { key: 'winning_option',         group: 'Bet linkage' },
+
+  { key: 'period',                 group: 'Timing' },
+  { key: 'clock',                  group: 'Timing' },
+  { key: 'wallclock',              group: 'Timing' },
+  { key: 'created_at',             group: 'Timing' },
+
+  { key: 'team',                   group: 'Play context' },
+  { key: 'player',                 group: 'Play context' },
+  { key: 'secondary_player',       group: 'Play context' },
+  { key: 'subtype',                group: 'Play context' },
+  { key: 'yards',                  group: 'Play context' },
+  { key: 'scoring_play',           group: 'Play context' },
+
+  { key: 'start_yard_line',        group: 'Field position' },
+  { key: 'start_down',             group: 'Field position' },
+  { key: 'start_distance',         group: 'Field position' },
+  { key: 'yards_to_endzone',       group: 'Field position' },
+  { key: 'end_yard_line',          group: 'Field position' },
+  { key: 'end_down',               group: 'Field position' },
+  { key: 'end_distance',           group: 'Field position' },
+  { key: 'end_yards_to_endzone',   group: 'Field position' },
+  { key: 'end_down_distance_text', group: 'Field position' },
+  { key: 'end_possession_text',    group: 'Field position' },
+
+  { key: 'home_score',             group: 'Score state' },
+  { key: 'away_score',             group: 'Score state' },
+  { key: 'home_win_probability',   group: 'Score state' },
+
+  { key: 'event_data',             group: 'Raw payload' },
+];
+
+/** Consecutive runs of the same group, for the spanning header row. */
+export function columnGroups(columns: EventColumn[]): { group: string; span: number }[] {
+  const runs: { group: string; span: number }[] = [];
+  for (const col of columns) {
+    const last = runs[runs.length - 1];
+    if (last && last.group === col.group) last.span += 1;
+    else runs.push({ group: col.group, span: 1 });
+  }
+  return runs;
+}
+
+/** Renders a raw column value as display text; null and '' both read as absent. */
+export function cellText(key: string, value: unknown): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (key === 'event_data') return JSON.stringify(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (key === 'created_at' || key === 'wallclock') {
+    const d = new Date(String(value));
+    return Number.isNaN(d.getTime()) ? String(value) : fmtClockTime(String(value));
+  }
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
 
 // Event types written by the app itself rather than by the game feed: bet
 // lifecycle, fantasy scoring, audit-sheet column bookkeeping, and the claim
@@ -48,15 +128,6 @@ export function isGameplayEvent(e: RawEvent): boolean {
   return !APP_EVENT_TYPES.has(e.event_type);
 }
 
-// event_data keys that are rendered in their own column (or are pure plumbing),
-// so they shouldn't be repeated in the generic per-event detail list.
-const META_KEYS = new Set([
-  'type', 'sport', 'period', 'clock', 'firedAt', 'description',
-  'homeScore', 'awayScore', 'homeTeam', 'awayTeam',
-  'player', 'playerId', 'team', 'subtype', 'secondary_player',
-  'scriptId', 'simulationMode', 'receivingTeam',
-]);
-
 function humanizeKey(key: string): string {
   return key
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -75,9 +146,10 @@ export function fmtClockTime(iso: string): string {
 }
 
 /**
- * Period + clock as one label. `clock` arrives in two shapes depending on the
- * event source: already prefixed ("Q1 15:00") from script-driven sim events,
- * or bare ("4:27") from the live feed — so only prefix when it isn't already.
+ * Period + clock as one label, read from event_data since the flat columns of
+ * the same name are empty. `clock` arrives in two shapes depending on the event
+ * source: already prefixed ("Q1 15:00") from script-driven sim events, or bare
+ * ("4:27") from the live feed — so only prefix when it isn't already.
  */
 export function periodClock(e: RawEvent): string {
   const d = e.event_data ?? {};
@@ -95,61 +167,4 @@ function periodLabel(d: Record<string, unknown>, period: number): string {
   const isNhl = d.sport === 'NHL';
   if (isNhl) return period > 3 ? 'OT' : `P${period}`;
   return period > 4 ? 'OT' : `Q${period}`;
-}
-
-/** 'home'/'away' resolve against the event's own team names; abbreviations pass through. */
-export function teamLabel(e: RawEvent): string {
-  const d = e.event_data ?? {};
-  const team = d.team;
-  if (typeof team !== 'string' || !team) return '—';
-  if (team === 'home') return String(d.homeTeam ?? 'Home');
-  if (team === 'away') return String(d.awayTeam ?? 'Away');
-  return team;
-}
-
-export function scoreLabel(e: RawEvent): string {
-  const d = e.event_data ?? {};
-  const away = d.awayScore;
-  const home = d.homeScore;
-  if (typeof away !== 'number' || typeof home !== 'number') return '—';
-  return `${away} – ${home}`;
-}
-
-export function playerLabel(e: RawEvent): string | null {
-  const d = e.event_data ?? {};
-  const name = d.player ?? d.playerName ?? e.player;
-  return typeof name === 'string' && name ? name : null;
-}
-
-/** Leftover event_data fields — the per-type payload (yards, distance, points, …). */
-export function eventExtras(e: RawEvent): [string, string][] {
-  const d = e.event_data ?? {};
-  return Object.entries(d)
-    .filter(([k, v]) => !META_KEYS.has(k) && v !== null && v !== undefined && v !== '')
-    .map(([k, v]) => [
-      humanizeKey(k),
-      typeof v === 'object' ? JSON.stringify(v) : String(v),
-    ]);
-}
-
-/**
- * One-line human description. Script-driven events carry a ready-made
- * `description` ("🎯 FIELD GOAL — DEN · Lutz 28yd"); live-feed events don't, so
- * one is composed from the player, subtype and remaining payload fields.
- */
-export function describeEvent(e: RawEvent): string {
-  const d = e.event_data ?? {};
-  if (typeof d.description === 'string' && d.description.trim()) return d.description;
-
-  const parts: string[] = [];
-  const player = playerLabel(e);
-  if (player) parts.push(player);
-  if (typeof d.subtype === 'string' && d.subtype) parts.push(humanizeKey(d.subtype));
-  if (typeof d.secondary_player === 'string' && d.secondary_player) {
-    parts.push(`with ${d.secondary_player}`);
-  }
-  const extras = eventExtras(e).map(([label, value]) => `${label}: ${value}`);
-  if (extras.length) parts.push(extras.join(' · '));
-
-  return parts.length ? parts.join(' · ') : '—';
 }
