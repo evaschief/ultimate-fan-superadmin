@@ -2,16 +2,16 @@
 
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { RawEvent, eventLabel, fmtClockTime, periodClock } from '../eventFormat';
+import { RawEventRow, eventLabel, fmtClockTime, periodClock } from '../eventFormat';
 
 // Kept on one line and capped so every row stays the same height and scannable;
 // the untruncated payload is one click away in the expanded <pre>.
-function preview(e: RawEvent): string {
+function preview(e: RawEventRow): string {
   const json = JSON.stringify(e.event_data ?? {});
   return json.length > 200 ? `${json.slice(0, 200)}…` : json;
 }
 
-export default function RawEventsClient({ events }: { events: RawEvent[] }) {
+export default function RawEventsClient({ events }: { events: RawEventRow[] }) {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
 
@@ -125,8 +125,10 @@ export default function RawEventsClient({ events }: { events: RawEvent[] }) {
                     <summary className="cursor-pointer font-mono text-xs text-secondary hover:text-gray-900 whitespace-nowrap">
                       {preview(e)}
                     </summary>
+                    {/* The complete row, every column, so this matches what the
+                        table shows in Supabase rather than a hand-picked subset. */}
                     <pre className="mt-2 bg-gray-50 border border-border rounded-md p-2 text-xs font-mono text-gray-900 whitespace-pre">
-{JSON.stringify({ event_id: e.event_id, player: e.player, event_data: e.event_data }, null, 2)}
+{JSON.stringify(e, null, 2)}
                     </pre>
                   </details>
                 </td>

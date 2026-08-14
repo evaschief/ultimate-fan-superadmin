@@ -19,6 +19,13 @@ export interface RawEvent {
   event_data: Record<string, unknown> | null;
 }
 
+/**
+ * The whole row, every column, exactly as stored — what the Raw Events view
+ * renders when a payload is expanded, so it mirrors the table in Supabase
+ * rather than a chosen subset.
+ */
+export type RawEventRow = RawEvent & Record<string, unknown>;
+
 export const RAW_EVENT_COLUMNS =
   'id, event_type, event_id, bet_id, winning_option, created_at, player, event_data';
 
