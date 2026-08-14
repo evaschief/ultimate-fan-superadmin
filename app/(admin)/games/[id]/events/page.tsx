@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import GameHeader, { getGame } from '../GameHeader';
 import { GAME_EVENT_COLUMNS, RawEventRow, isGameplayEvent } from '../eventFormat';
-import GameEventsClient from './GameEventsClient';
+import EventTable from '../EventTable';
 
 // Gameplay feed only — bet lifecycle, fantasy credits and audit/claim
 // bookkeeping are stripped out here (see APP_EVENT_TYPES) and live on the Raw
@@ -38,7 +38,7 @@ export default async function GameEventsPage({ params }: { params: { id: string 
         {GAME_EVENT_COLUMNS.length} of them, scrolling sideways. Most of the play-by-play
         columns are unwritten — use the toggle to drop the ones with no value for this game.
       </p>
-      <GameEventsClient events={events} />
+      <EventTable events={events} />
     </div>
   );
 }
