@@ -42,7 +42,7 @@ export default async function SimsPage() {
         <h1 className="text-lg font-semibold text-gray-900">Simulations</h1>
         <p className="text-secondary text-sm mt-1">All simulated game sessions</p>
       </div>
-      <GamesClient initialGames={games} />
+      <GamesClient initialGames={games} initialSource="sim" />
     </div>
   );
 }

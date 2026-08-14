@@ -129,7 +129,8 @@ export default async function GamesPage() {
       <div className="mb-4">
         <h1 className="text-lg font-semibold text-gray-900">All Games</h1>
         <p className="text-secondary text-sm mt-1">
-          Live, upcoming and played games. Unclaimed schedule templates are excluded.
+          Live, upcoming and played games, newest first. Simulations sit behind the Sims
+          button; unclaimed schedule templates are excluded entirely.
         </p>
       </div>
       <GamesClient initialGames={games} />

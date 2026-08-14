@@ -8,6 +8,16 @@ import clsx from 'clsx';
 
 const STATUS_FILTERS = ['all', 'live', 'lobby', 'ended'] as const;
 
+// Simulated games are kept out of the default list: they carry real-looking
+// scores and rosters, and mixing them with venue games makes the list untrust-
+// worthy at a glance. They stay one click away rather than hidden.
+const SOURCE_FILTERS = [
+  { key: 'real', label: 'LIVE DATA' },
+  { key: 'sim',  label: 'SIMS' },
+] as const;
+
+export type SourceFilter = (typeof SOURCE_FILTERS)[number]['key'];
+
 // Off by default: this only earns its keep while a game night is running, and a
 // page that reloads itself unprompted is worse than one that doesn't.
 const REFRESH_CHOICES = [
@@ -114,13 +124,26 @@ function DeleteButton({ gameId, onDeleted }: { gameId: string; onDeleted: () => 
   );
 }
 
-export default function GamesClient({ initialGames }: { initialGames: (GameSession & { isSim?: boolean; auditSheetUrl?: string | null; recording?: boolean; gameEvents?: number; rawEvents?: number })[] }) {
+export default function GamesClient({
+  initialGames,
+  initialSource = 'real',
+}: {
+  initialGames: (GameSession & { isSim?: boolean; auditSheetUrl?: string | null; recording?: boolean; gameEvents?: number; rawEvents?: number })[];
+  /** The Sims page renders this same table over the simulated games instead. */
+  initialSource?: SourceFilter;
+}) {
   const router = useRouter();
   const [games, setGames] = useState(initialGames);
   const [filter, setFilter] = useState<string>('all');
   const [sportFilter, setSportFilter] = useState<string>('all');
+  const [source, setSource] = useState<SourceFilter>(initialSource);
+
+  const simCount = games.filter(g => g.isSim).length;
+  const realCount = games.length - simCount;
 
   const filtered = games.filter(g => {
+    if (source === 'real' && g.isSim) return false;
+    if (source === 'sim' && !g.isSim) return false;
     if (filter !== 'all' && g.status !== filter) return false;
     if (sportFilter !== 'all' && g.sport !== sportFilter) return false;
     return true;
@@ -150,6 +173,26 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
 
       {/* Filters */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="flex gap-1.5">
+          {SOURCE_FILTERS.map(f => (
+            <button
+              key={f.key}
+              onClick={() => setSource(f.key)}
+              className={clsx(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                source === f.key
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'bg-white text-secondary border-border hover:border-gray-900'
+              )}
+            >
+              {f.label}
+              <span className="font-normal opacity-70 ml-1">
+                {f.key === 'sim' ? simCount : realCount}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="h-4 w-px bg-border" />
         <div className="flex gap-1.5">
           {STATUS_FILTERS.map(f => (
             <button
