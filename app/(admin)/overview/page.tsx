@@ -26,6 +26,12 @@ async function fetchOverviewData(sport: string, simOnly: boolean): Promise<GameM
   let query = supabase
     .from('games')
     .select('id, join_code, sport, home_team, away_team, flags, created_at, scheduled_at, status')
+    // Coded games only, matching the games list. Codeless rows are the leftover
+    // prepopulated schedule rows (schedule-games' assignCodes:false path) that
+    // shadow a real coded game with the same matchup and kickoff — they showed
+    // up here as a second entry per game, labelled with a raw row id since
+    // joinCode falls back to the id when join_code is null.
+    .not('join_code', 'is', null)
     .eq('sport', sport);
 
   if (simOnly) {
@@ -194,9 +200,13 @@ export default async function OverviewPage({
   // If sim param not explicitly set, auto-fall-back to sim data when no real games exist
   let simOnly = searchParams.sim === '1';
   if (searchParams.sim === undefined) {
+    // Counts coded games only, so this "are there real games?" test matches what
+    // fetchOverviewData will actually display — otherwise a set of codeless
+    // shadow rows could keep it out of sim mode while showing nothing.
     const { count } = await supabase
       .from('games')
       .select('id', { count: 'exact', head: true })
+      .not('join_code', 'is', null)
       .eq('sport', sport)
       .eq('status', 'ended')
       .eq('flags->>is_sim', 'false');

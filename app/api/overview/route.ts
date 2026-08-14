@@ -12,9 +12,11 @@ export async function GET(req: NextRequest) {
   // Auto-fallback: if sim param not set, check if any real games exist
   let simOnly = simParam === '1';
   if (simParam === null) {
+    // Coded games only, matching the page-level query below and the games list.
     const { count } = await supabase
       .from('games')
       .select('id', { count: 'exact', head: true })
+      .not('join_code', 'is', null)
       .eq('sport', sport)
       .eq('status', 'ended')
       .eq('flags->>is_sim', 'false');
@@ -24,6 +26,9 @@ export async function GET(req: NextRequest) {
   let gamesQuery = supabase
     .from('games')
     .select('id, join_code, sport, home_team, away_team, flags, created_at, status')
+    // Codeless rows are prepopulated schedule leftovers that shadow a real coded
+    // game with the same matchup — excluded so each game appears once.
+    .not('join_code', 'is', null)
     .eq('sport', sport);
 
   if (simOnly) {
