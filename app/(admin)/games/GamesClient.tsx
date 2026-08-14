@@ -73,11 +73,15 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
     return true;
   });
 
-  // Live games first, then lobby (scheduled) games soonest-to-furthest by
-  // kickoff time, then ended games last. Ties within a status group (e.g.
-  // two lobby games with the same scheduled_at, or games with no
+  // Live games first, then lobby (scheduled), then ended. Within a group,
+  // direction depends on whether the games are ahead of or behind us:
+  // ended games run newest-first, so the game that just finished is at the top
+  // instead of buried under months of history, while lobby games stay
+  // soonest-first so the next kickoff leads rather than the furthest-away one.
+  // Ties (two lobby games at the same scheduled_at, or rows with no
   // scheduled_at at all) fall back to created_at so ordering stays stable.
   const STATUS_ORDER: Record<string, number> = { live: 0, lobby: 1, ended: 2 };
+  const ENDED_ORDER = 2;
   const sorted = [...filtered].sort((a, b) => {
     const aOrder = STATUS_ORDER[a.status] ?? 3;
     const bOrder = STATUS_ORDER[b.status] ?? 3;
@@ -87,7 +91,7 @@ export default function GamesClient({ initialGames }: { initialGames: (GameSessi
     const bTime = b.scheduledAt ?? b.createdAt;
     const aMs = aTime ? new Date(aTime as string).getTime() : 0;
     const bMs = bTime ? new Date(bTime as string).getTime() : 0;
-    return aMs - bMs; // soonest first
+    return aOrder === ENDED_ORDER ? bMs - aMs : aMs - bMs;
   });
 
   return (
