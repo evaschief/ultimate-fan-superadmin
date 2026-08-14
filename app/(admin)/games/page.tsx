@@ -4,24 +4,25 @@ import GamesClient from './GamesClient';
 
 async function getAllGames(): Promise<GameSession[]> {
   try {
-    // Only games that have a join_code — the code assigned when the game was
-    // actually created for play.
+    // Excludes the reference pool: rows with neither a location_id nor a
+    // join_code. schedule-games prepopulates one of those per real fixture up
+    // to 14 days out, and claiming one (venue Schedule tab, or the auto-claim
+    // toggle) creates an independent COPY with its own id, join_code and
+    // location_id — the reference row is left in place ON PURPOSE so other
+    // venues can claim their own copy of the same matchup. So every claimed
+    // game has a same-matchup reference row beside it, which is what looked
+    // like duplication here. It isn't; it's a template that was never meant to
+    // appear as a manageable game. The venue admin panel's list_games applies
+    // exactly this rule (see admin-api's comment on that case) — this list now
+    // matches it.
     //
-    // Without this the list showed apparent duplicates: the same matchup at the
-    // same kickoff appearing twice, once under its real code and once as "Code
-    // not assigned yet" with 0 players. They are two distinct `games` rows —
-    // the coded one carries a location_id (the venue that claimed it) while the
-    // twin has none, i.e. the leftover prepopulated schedule row from
-    // schedule-games' assignCodes:false path. Nine such pairs existed at the
-    // time of writing. Requiring a join_code keeps the row players actually
-    // joined and drops the shadow.
-    //
-    // Fetched wider than the rows this list shows because the data filter below
-    // still trims further, and most of the table is these codeless rows.
+    // Tested with OR rather than location_id alone so sim runs and older games
+    // that predate venue scoping (a join_code but no location_id — N686, N730,
+    // N512, N383, ARCA) stay visible.
     const { data, error } = await supabase
       .from('games')
-      .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, scheduled_at, flags, audit_sheet_url')
-      .not('join_code', 'is', null)
+      .select('id, join_code, sport, status, home_team, away_team, home_score, away_score, period, clock, created_at, scheduled_at, location_id, flags, audit_sheet_url')
+      .or('location_id.not.is.null,join_code.not.is.null')
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -31,14 +32,19 @@ async function getAllGames(): Promise<GameSession[]> {
     // view (per-game live period/clock is still available on the game
     // detail page; this list is about roster size, not in-progress state).
     //
-    // The same queries decide which games appear at all: a game is only
-    // listed if something was actually stored against it — players who
-    // joined, bets that were generated, or settled game_history rows. That
-    // drops scheduled-but-never-played games (and prepopulated schedule
-    // rows) from the view. `players` rows survive game end — process-event's
-    // game_end upserts game_history without deleting them — so ended games
-    // still qualify. Bets are checked too, since a game can generate bets
+    // The same queries decide which ENDED games appear: a finished game is
+    // only listed if something was actually stored against it — players who
+    // joined, bets that were generated, or settled game_history rows — so
+    // games that were claimed but never actually played don't clutter the
+    // history. `players` rows survive game end (process-event's game_end
+    // upserts game_history without deleting them), so real ended games still
+    // qualify. Bets are checked too, since a game can generate bets
     // before/without anyone joining.
+    //
+    // Live and lobby games are NEVER filtered this way. An upcoming game has
+    // no players, bets or history yet by definition, so requiring stored data
+    // hid every scheduled game — including tonight's — which is exactly what
+    // this list needs to show.
     const gameIds = data.map(g => g.id);
     const playerCounts: Record<string, number> = {};
     const gamesWithData = new Set<string>();
@@ -64,12 +70,13 @@ async function getAllGames(): Promise<GameSession[]> {
       }
     }
 
-    return data.filter(row => gamesWithData.has(row.id)).map(row => ({
+    return data.filter(row => row.status !== 'ended' || gamesWithData.has(row.id)).map(row => ({
       id: row.id,
-      // Prepopulated future games (see schedule-games' assignCodes:false
-      // path) have no join_code yet — fall back to the row id only as an
-      // internal identifier, never shown as-is (see GamesClient's hasCode
-      // check, which shows "Code not assigned yet" instead).
+      // A venue game scheduled for a future date legitimately has no join_code
+      // yet: assignCodesForToday() hands out codes day-of, so the code appears
+      // on the morning of the game. Fall back to the row id purely as an
+      // internal identifier — GamesClient's hasCode check renders "Code not
+      // assigned yet" rather than showing a raw uuid.
       gameCode: row.join_code ?? row.id,
       hasCode: row.join_code != null,
       sport: row.sport ?? 'NHL',
@@ -99,7 +106,7 @@ export default async function GamesPage() {
       <div className="mb-4">
         <h1 className="text-lg font-semibold text-gray-900">All Games</h1>
         <p className="text-secondary text-sm mt-1">
-          Games with a join code and recorded data — live, lobby, and ended
+          Live, upcoming and played games. Unclaimed schedule templates are excluded.
         </p>
       </div>
       <GamesClient initialGames={games} />
