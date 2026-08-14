@@ -44,12 +44,28 @@ async function getBetStats(gameId: string, sport: string | null) {
   });
 
   const totalWagered = (playerBets ?? []).reduce((s, pb) => s + (pb.amount ?? 0), 0);
-  const settled = stats.filter(b => b.winningOption).length;
+  // A voided bet can carry the literal string 'void' in winning_option rather
+  // than null (process-event writes { status: 'void' } for bets whose trigger
+  // never resolved, and at least one row in current data has 'void' in the
+  // winner column too). Counting winning_option for truthiness alone therefore
+  // reported a voided bet as settled — hence isRealWinner.
+  const settled = stats.filter(b => isRealWinner(b.winningOption)).length;
+  const voided = stats.filter(b => isVoid(b)).length;
+  const unresolved = stats.length - settled - voided;
   const avgParticipation = stats.length > 0
     ? Math.round(stats.reduce((s, b) => s + b.participationRate, 0) / stats.length)
     : 0;
 
-  return { stats, totalWagered, settled, avgParticipation };
+  return { stats, totalWagered, settled, voided, unresolved, avgParticipation };
+}
+
+function isRealWinner(winningOption: string | null): boolean {
+  return !!winningOption && winningOption.toLowerCase() !== 'void';
+}
+
+function isVoid(bet: { status: string | null; winningOption: string | null }): boolean {
+  if (isRealWinner(bet.winningOption)) return false;
+  return bet.status === 'void' || (bet.winningOption ?? '').toLowerCase() === 'void';
 }
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -66,7 +82,7 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
   const game = await getGame(params.id);
   if (!game) notFound();
 
-  const { stats, totalWagered, settled, avgParticipation } = await getBetStats(game.id, game.sport);
+  const { stats, totalWagered, settled, voided, unresolved, avgParticipation } = await getBetStats(game.id, game.sport);
 
   return (
     <div className="p-5 pb-10 max-w-5xl">
@@ -74,7 +90,7 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <StatCard label="Bets" value={stats.length} />
-        <StatCard label="Settled" value={settled} sub={`${stats.length - settled} unresolved`} />
+        <StatCard label="Settled" value={settled} sub={`${voided} void · ${unresolved} unresolved`} />
         <StatCard label="Total Wagered" value={totalWagered.toLocaleString()} sub="pts across all bets" />
         <StatCard label="Avg Participation" value={`${avgParticipation}%`} sub="of the roster per bet" />
       </div>
@@ -102,10 +118,15 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
                   {[b.optionA, b.optionB].filter(Boolean).join(' / ') || '—'}
                 </td>
                 <td className="px-3 py-2">
-                  {b.winningOption
-                    ? <span className="text-success font-medium">{b.winningOption}</span>
-                    : <span className="text-muted">—</span>
-                  }
+                  {isRealWinner(b.winningOption) ? (
+                    <span className="text-success font-medium">{b.winningOption}</span>
+                  ) : isVoid(b) ? (
+                    // Distinct from '—': the bet was explicitly voided at game
+                    // end (trigger never resolved), not merely awaiting a result.
+                    <span className="text-xs bg-gray-100 text-muted border border-border px-2 py-0.5 rounded-full font-semibold">Void</span>
+                  ) : (
+                    <span className="text-muted">—</span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-right text-secondary">
                   {b.participants} <span className="text-muted text-xs">({b.participationRate}%)</span>
