@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { GameSession } from '@/types';
@@ -30,38 +30,68 @@ const REFRESH_CHOICES = [
 function AutoRefresh({ onRefresh }: { onRefresh: () => void }) {
   const [seconds, setSeconds] = useState(0);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  // Wrapping the refresh in a transition is what makes a manual press feel like
+  // it did something: the server round-trip is otherwise invisible.
+  const [isPending, startTransition] = useTransition();
+
+  function refresh() {
+    startTransition(() => {
+      onRefresh();
+      setLastRefresh(new Date());
+    });
+  }
 
   useEffect(() => {
     if (seconds === 0) return;
-    const timer = window.setInterval(() => {
-      onRefresh();
-      setLastRefresh(new Date());
-    }, seconds * 1000);
+    const timer = window.setInterval(refresh, seconds * 1000);
     return () => window.clearInterval(timer);
-  }, [seconds, onRefresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seconds]);
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-muted">Auto-refresh</span>
-      <div className="flex gap-1">
-        {REFRESH_CHOICES.map(choice => (
-          <button
-            key={choice.label}
-            onClick={() => { setSeconds(choice.seconds); setLastRefresh(null); }}
-            className={clsx(
-              'px-2 py-1 rounded-md text-xs font-semibold border transition-colors',
-              seconds === choice.seconds
-                ? 'bg-amber-dim text-amber border-amber-border'
-                : 'bg-white text-secondary border-border hover:border-amber'
-            )}
-          >
-            {choice.label}
-          </button>
-        ))}
+    <div className="flex items-center gap-3 flex-wrap">
+      <button
+        onClick={refresh}
+        disabled={isPending}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border border-border bg-white text-secondary hover:border-amber hover:text-amber transition-colors disabled:opacity-60"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          className={clsx('w-3 h-3', isPending && 'animate-spin')}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          aria-hidden="true"
+        >
+          <path d="M14 8a6 6 0 1 1-1.76-4.24" strokeLinecap="round" />
+          <path d="M14 1.5V4h-2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {isPending ? 'Refreshing…' : 'Refresh now'}
+      </button>
+
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted">Auto</span>
+        <div className="flex gap-1">
+          {REFRESH_CHOICES.map(choice => (
+            <button
+              key={choice.label}
+              onClick={() => setSeconds(choice.seconds)}
+              className={clsx(
+                'px-2 py-1 rounded-md text-xs font-semibold border transition-colors',
+                seconds === choice.seconds
+                  ? 'bg-amber-dim text-amber border-amber-border'
+                  : 'bg-white text-secondary border-border hover:border-amber'
+              )}
+            >
+              {choice.label}
+            </button>
+          ))}
+        </div>
       </div>
-      {seconds > 0 && (
-        <span className="flex items-center gap-1.5 text-xs text-success">
-          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+
+      {(seconds > 0 || lastRefresh) && (
+        <span className={clsx('flex items-center gap-1.5 text-xs', seconds > 0 ? 'text-success' : 'text-muted')}>
+          {seconds > 0 && <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />}
           {lastRefresh
             ? `updated ${lastRefresh.toLocaleTimeString('en-US', { hour12: false })}`
             : 'live'}
