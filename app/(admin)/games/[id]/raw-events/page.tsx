@@ -28,7 +28,7 @@ export default async function RawEventsPage({ params }: { params: { id: string }
   const events = await getRawEvents(game.id);
 
   return (
-    <div className="p-5 pb-10 max-w-6xl">
+    <div className="p-5 pb-10">
       <GameHeader game={game} active="raw-events" counts={counts} />
       <p className="text-secondary text-sm mb-1">
         Every row written to <span className="font-mono">game_events</span> for this game, in

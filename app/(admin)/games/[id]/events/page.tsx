@@ -29,7 +29,7 @@ export default async function GameEventsPage({ params }: { params: { id: string 
   const events = await getGameplayEvents(game.id);
 
   return (
-    <div className="p-5 pb-10 max-w-6xl">
+    <div className="p-5 pb-10">
       <GameHeader game={game} active="events" counts={counts} />
       <p className="text-secondary text-sm mb-1">
         What happened on the field, newest first — scoring plays, stat lines, period boundaries.
