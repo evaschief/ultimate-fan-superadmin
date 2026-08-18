@@ -22,19 +22,20 @@ export async function getCaptureStart(): Promise<string | null> {
   return data?.[0]?.fetched_at ?? null;
 }
 
-/**
- * Where a row came from. Only `live` is labelled: backfilled rows were the
- * default state of every table when this was built, so a pill on all of them
- * was noise on every row. An empty cell means the row was not captured live.
- */
+/** Where a row came from. This is a stored column, so show its value plainly. */
 export function SourcePill({ source }: { source: string | null }) {
-  if (source !== 'live') return <span className="text-muted text-xs">—</span>;
+  if (!source) return <span className="text-muted text-xs">—</span>;
+  const isLive = source === 'live';
   return (
     <span
-      title="Captured from the provider as the game happened"
-      className="text-xs bg-success/10 text-success border border-success/30 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap"
+      title={isLive
+        ? 'Captured from the provider as the game happened'
+        : 'Written after the game; not evidence of the live provider feed'}
+      className={isLive
+        ? 'text-xs bg-success/10 text-success border border-success/30 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap'
+        : 'text-xs bg-amber-dim text-amber border border-amber-border px-1.5 py-0.5 rounded font-semibold whitespace-nowrap'}
     >
-      live
+      {source}
     </span>
   );
 }
@@ -63,15 +64,6 @@ export function fmtTime(iso: string | null): string {
   return new Date(iso).toLocaleTimeString('en-US', {
     hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   });
-}
-
-/** Gap to the previous row, which is what shows the polling cadence. */
-export function fmtDelta(iso: string | null, prevIso: string | null): string {
-  if (!iso || !prevIso) return '—';
-  const ms = new Date(iso).getTime() - new Date(prevIso).getTime();
-  if (!Number.isFinite(ms)) return '—';
-  if (Math.abs(ms) < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
 }
 
 export function CaptureEmpty({
