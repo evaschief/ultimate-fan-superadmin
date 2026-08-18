@@ -113,7 +113,6 @@ export default async function RawStatePage({ params }: { params: { id: string } 
 
   const runs = buildRuns(states);
   const regressions = runs.filter(r => r.isRegression);
-  const reconstructed = states.filter(s => s.source && s.source !== 'live').length;
   // Newest first for display; runs were built in time order.
   const display = [...runs].reverse();
 
@@ -136,9 +135,6 @@ export default async function RawStatePage({ params }: { params: { id: string } 
               </span> — the provider reported an earlier period than it had already reported</>
             ) : (
               <> · <span className="text-success">no period regressions</span></>
-            )}
-            {reconstructed > 0 && (
-              <> · <span className="text-amber">{reconstructed} reconstructed, not captured live</span></>
             )}
           </>
         ) : (

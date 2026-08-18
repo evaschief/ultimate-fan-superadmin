@@ -61,7 +61,6 @@ export default async function RawPlaysPage({ params }: { params: { id: string } 
 
   const ids = plays.map(p => p.bdl_play_id).filter((n): n is number => typeof n === 'number');
   const unclaimed = plays.filter(p => !p.claimed_at).length;
-  const reconstructed = plays.filter(p => p.source && p.source !== 'live').length;
 
   return (
     <div className="p-5 pb-10">
@@ -79,9 +78,6 @@ export default async function RawPlaysPage({ params }: { params: { id: string } 
               <> · ids <span className="font-mono">{Math.min(...ids)}–{Math.max(...ids)}</span></>
             )}
             {unclaimed > 0 && <> · <span className="text-amber">{unclaimed} unclaimed</span></>}
-            {reconstructed > 0 && (
-              <> · <span className="text-amber">{reconstructed} reconstructed, not captured live</span></>
-            )}
             {' '}— compare the count against the gamebook to confirm nothing was dropped.
           </>
         ) : (

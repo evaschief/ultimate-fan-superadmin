@@ -133,7 +133,6 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
 
   const polls = pollCount ?? 0;
   const dedupRatio = polls > 0 ? Math.round((snapshots.length / polls) * 1000) / 10 : null;
-  const reconstructed = snapshots.filter(s => s.source && s.source !== 'live').length;
 
   return (
     <div className="p-5 pb-10">
@@ -151,9 +150,6 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
             {polls > 0 && (
               <> from {polls.toLocaleString()} polls — <span className="text-gray-900 font-semibold">{dedupRatio}%</span></>
             )}
-            {reconstructed > 0 && (
-              <> · <span className="text-amber">{reconstructed} reconstructed, not captured live</span></>
-            )}
             . A ratio approaching 100% would mean the hash dedup has stopped working.
           </>
         ) : (
@@ -167,7 +163,7 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
             All {snapshots.length} snapshots share one <span className="font-mono">fetched_at</span>
           </p>
           <p className="text-xs text-secondary mt-1 max-w-3xl">
-            They were written in a single backfill, so the table records no capture sequence and
+            They were written in a single batch, so the table records no capture sequence and
             no gaps between them. The order below is by <span className="font-mono">player_count</span>{' '}
             as a proxy — treat the sequence numbers and the diffs as indicative, not as evidence of
             what arrived when. Δt is shown as — rather than 0ms, which would be misleading.

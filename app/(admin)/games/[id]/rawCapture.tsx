@@ -23,26 +23,18 @@ export async function getCaptureStart(): Promise<string | null> {
 }
 
 /**
- * Where a row came from. Worth a pill on every row rather than a note at the
- * top: `backfill` rows were reconstructed after the game from the play feed,
- * not captured from the provider as it happened, so they are evidence about the
- * reconstruction and not about what the provider actually sent.
+ * Where a row came from. Only `live` is labelled: backfilled rows were the
+ * default state of every table when this was built, so a pill on all of them
+ * was noise on every row. An empty cell means the row was not captured live.
  */
 export function SourcePill({ source }: { source: string | null }) {
-  if (!source) return <span className="text-muted text-xs">—</span>;
-  const isLive = source === 'live';
+  if (source !== 'live') return <span className="text-muted text-xs">—</span>;
   return (
     <span
-      title={isLive
-        ? 'Captured from the provider as the game happened'
-        : 'Reconstructed after the fact — not what the provider sent live'}
-      className={
-        isLive
-          ? 'text-xs bg-success/10 text-success border border-success/30 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap'
-          : 'text-xs bg-amber-dim text-amber border border-amber-border px-1.5 py-0.5 rounded font-semibold whitespace-nowrap'
-      }
+      title="Captured from the provider as the game happened"
+      className="text-xs bg-success/10 text-success border border-success/30 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap"
     >
-      {source}
+      live
     </span>
   );
 }
