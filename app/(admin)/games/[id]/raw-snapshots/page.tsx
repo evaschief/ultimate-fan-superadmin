@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { Fragment } from 'react';
 import { supabase } from '@/lib/supabase';
 import GameHeader, { getEventCounts, getGame } from '../GameHeader';
 import {
@@ -20,6 +21,14 @@ interface SnapshotRow {
   payload: unknown;
 }
 
+interface PayloadChange {
+  team: string;
+  player: string;
+  stat: string;
+  before: string;
+  after: string;
+}
+
 async function getSnapshots(gameId: string): Promise<SnapshotRow[]> {
   const { data } = await supabase
     .from('raw_stat_snapshots')
@@ -31,6 +40,82 @@ async function getSnapshots(gameId: string): Promise<SnapshotRow[]> {
   return (data ?? []) as SnapshotRow[];
 }
 
+// These fields identify a player rather than describe an in-game stat. The
+// provider has two payload shapes: historical BDL rows use nested player/team
+// objects, while live capture uses NormalizedPlayer's playerName/teamAbv fields.
+const IDENTITY_KEYS = new Set(['team', 'player', 'playerId', 'playerName', 'teamAbv']);
+
+function playerIdentity(entry: Record<string, unknown>): { team: string; player: string } {
+  const nestedPlayer = entry.player && typeof entry.player === 'object'
+    ? (entry.player as Record<string, unknown>).last_name
+    : null;
+  const nestedTeam = entry.team && typeof entry.team === 'object'
+    ? (entry.team as Record<string, unknown>).abbreviation
+    : null;
+  return {
+    team: (typeof nestedTeam === 'string' && nestedTeam) ||
+      (typeof entry.teamAbv === 'string' && entry.teamAbv) || '—',
+    player: (typeof nestedPlayer === 'string' && nestedPlayer) ||
+      (typeof entry.playerName === 'string' && entry.playerName) || '(unnamed)',
+  };
+}
+
+function flattenPayload(payload: unknown): Map<string, { team: string; player: string; stats: Map<string, unknown> }> {
+  const players = new Map<string, { team: string; player: string; stats: Map<string, unknown> }>();
+  if (!Array.isArray(payload)) return players;
+
+  for (const value of payload) {
+    if (!value || typeof value !== 'object') continue;
+    const entry = value as Record<string, unknown>;
+    const { team, player } = playerIdentity(entry);
+    const key = `${team}\u0000${player}`;
+    const stats = players.get(key)?.stats ?? new Map<string, unknown>();
+    for (const [name, stat] of Object.entries(entry)) {
+      if (!IDENTITY_KEYS.has(name)) stats.set(name, stat);
+    }
+    players.set(key, { team, player, stats });
+  }
+  return players;
+}
+
+function formatStatName(name: string): string {
+  return name.replaceAll('_', ' ');
+}
+
+function payloadChanges(current: unknown, previous: unknown): PayloadChange[] {
+  const before = flattenPayload(previous);
+  const after = flattenPayload(current);
+  const changes: PayloadChange[] = [];
+
+  for (const [key, currentPlayer] of Array.from(after.entries())) {
+    const previousPlayer = before.get(key);
+    for (const [stat, value] of Array.from(currentPlayer.stats.entries())) {
+      const oldValue = previousPlayer?.stats.get(stat);
+      if (JSON.stringify(value) === JSON.stringify(oldValue)) continue;
+      changes.push({
+        team: currentPlayer.team,
+        player: currentPlayer.player,
+        stat: formatStatName(stat),
+        before: oldValue === undefined ? '—' : String(oldValue),
+        after: String(value),
+      });
+    }
+  }
+  return changes.sort((a, b) =>
+    a.team.localeCompare(b.team) || a.player.localeCompare(b.player) || a.stat.localeCompare(b.stat));
+}
+
+// Only used to provide a useful order for historical reconstruction rows that
+// were inserted with the same fetched_at. Live rows always use their actual
+// capture timestamps; this fallback is explicitly labelled in the UI.
+function statTotal(payload: unknown): number {
+  let total = 0;
+  for (const { stats } of Array.from(flattenPayload(payload).values())) {
+    for (const value of Array.from(stats.values())) if (typeof value === 'number') total += value;
+  }
+  return total;
+}
+
 export default async function RawSnapshotsPage({ params }: { params: { id: string } }) {
   const game = await getGame(params.id);
   if (!game) notFound();
@@ -40,6 +125,19 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
     getSnapshots(game.id),
     getCaptureStart(),
   ]);
+
+  const tiedTimes = snapshots.length > 1 && new Set(snapshots.map(row => row.fetched_at)).size <= 1;
+  const ordered = tiedTimes
+    ? [...snapshots].sort((a, b) =>
+        statTotal(a.payload) - statTotal(b.payload) ||
+        (a.player_count ?? 0) - (b.player_count ?? 0) ||
+        (a.payload_hash ?? '').localeCompare(b.payload_hash ?? ''))
+    : snapshots;
+  const rows = ordered.map((row, index) => ({
+    row,
+    changes: index === 0 ? [] : payloadChanges(row.payload, ordered[index - 1].payload),
+    isBaseline: index === 0,
+  })).reverse();
 
   return (
     <div className="p-5 pb-10">
@@ -59,6 +157,19 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
           <>Nothing captured for this game.</>
         )}
       </p>
+
+      <p className="text-muted text-xs mb-3 max-w-4xl">
+        Player activity is calculated from the stored payload against the preceding snapshot and
+        appears directly beneath that snapshot. It shows provider stat movement, <strong>not</strong>
+        a confirmed fantasy-points credit; confirmed credits remain on Game Events.
+      </p>
+
+      {tiedTimes && (
+        <div className="mb-3 rounded-lg border border-amber-border bg-amber-dim px-4 py-3 text-xs text-secondary max-w-4xl">
+          These historical rows share a capture timestamp, so their activity order is inferred from
+          accumulated stats. It is useful for inspection, but is not evidence of live arrival order.
+        </div>
+      )}
 
       {snapshots.length === 0 ? (
         <CaptureEmpty
@@ -87,28 +198,54 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
               </tr>
             </thead>
             <tbody>
-              {[...snapshots].reverse().map((row, i) => (
-                <tr
-                  key={row.id}
-                  className={`border-b border-border last:border-0 align-top ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
-                >
-                  <td className={TD}>{fmtTime(row.fetched_at)}</td>
-                  <td className={`${TD} text-secondary`} title={row.payload_hash ?? undefined}>
-                    {row.payload_hash ?? '—'}
-                  </td>
-                  <td className={`${TD} text-muted`}>{row.id.slice(0, 8)}</td>
-                  <td className={`${TD} text-right`}>{row.player_count ?? '—'}</td>
-                  <td className="px-3 py-2"><ClaimedPill claimedAt={row.claimed_at} /></td>
-                  <td className="px-3 py-2"><SourcePill source={row.source} /></td>
-                  <td className="px-3 py-2">
-                    <details>
-                      <summary className="cursor-pointer text-xs text-secondary hover:text-amber font-mono">view</summary>
-                      <pre className="mt-2 bg-white border border-border rounded-md p-2 text-xs font-mono text-gray-900 whitespace-pre-wrap break-words max-h-80 overflow-y-auto w-[min(58rem,80vw)]">
+              {rows.map(({ row, changes, isBaseline }, i) => (
+                <Fragment key={row.id}>
+                  <tr
+                    className={`border-b border-border align-top ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                  >
+                    <td className={TD}>{fmtTime(row.fetched_at)}</td>
+                    <td className={`${TD} text-secondary`} title={row.payload_hash ?? undefined}>
+                      {row.payload_hash ?? '—'}
+                    </td>
+                    <td className={`${TD} text-muted`}>{row.id.slice(0, 8)}</td>
+                    <td className={`${TD} text-right`}>{row.player_count ?? '—'}</td>
+                    <td className="px-3 py-2"><ClaimedPill claimedAt={row.claimed_at} /></td>
+                    <td className="px-3 py-2"><SourcePill source={row.source} /></td>
+                    <td className="px-3 py-2">
+                      <details>
+                        <summary className="cursor-pointer text-xs text-secondary hover:text-amber font-mono">view</summary>
+                        <pre className="mt-2 bg-white border border-border rounded-md p-2 text-xs font-mono text-gray-900 whitespace-pre-wrap break-words max-h-80 overflow-y-auto w-[min(58rem,80vw)]">
 {JSON.stringify(row.payload, null, 2)}
-                      </pre>
-                    </details>
-                  </td>
-                </tr>
+                        </pre>
+                      </details>
+                    </td>
+                  </tr>
+                  <tr className="border-b border-border bg-amber-dim/30">
+                    <td colSpan={7} className="px-5 py-3">
+                      {isBaseline ? (
+                        <span className="text-xs text-muted">Baseline snapshot — no preceding payload to compare.</span>
+                      ) : changes.length === 0 ? (
+                        <span className="text-xs text-muted">No readable player-stat fields changed from the preceding stored payload.</span>
+                      ) : (
+                        <div className="max-w-3xl">
+                          <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5">Payload activity (computed)</p>
+                          <table className="text-xs w-full">
+                            <thead><tr className="text-left text-muted"><th className="pb-1 pr-4">Team</th><th className="pb-1 pr-4">Player</th><th className="pb-1">Event / stat change</th></tr></thead>
+                            <tbody>
+                              {changes.map(change => (
+                                <tr key={`${change.team}-${change.player}-${change.stat}`} className="font-mono text-gray-900">
+                                  <td className="py-0.5 pr-4">{change.team}</td>
+                                  <td className="py-0.5 pr-4">{change.player}</td>
+                                  <td className="py-0.5">{change.stat}: <span className="text-muted">{change.before} →</span> <span className="font-semibold text-success">{change.after}</span></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>
