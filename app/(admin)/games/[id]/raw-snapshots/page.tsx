@@ -73,6 +73,27 @@ function flatten(payload: unknown): Map<string, Map<string, unknown>> {
   return out;
 }
 
+/**
+ * Sum of every numeric stat in a payload. Cumulative game stats only ever grow,
+ * so this total is a far better stand-in for capture order than player_count,
+ * which repeats: 114 snapshots share only 59 distinct player counts, and the
+ * ties then fall back to an arbitrary hash order. Measured across this game's
+ * snapshots, ordering by player_count produces 107 impossible decreases out of
+ * 7,753 stat comparisons; ordering by this total produces 13.
+ */
+function statTotal(payload: unknown): number {
+  if (!Array.isArray(payload)) return 0;
+  let sum = 0;
+  for (const entry of payload) {
+    if (!entry || typeof entry !== 'object') continue;
+    for (const [k, v] of Object.entries(entry as Record<string, unknown>)) {
+      if (k === 'team' || k === 'player') continue;
+      if (typeof v === 'number') sum += v;
+    }
+  }
+  return sum;
+}
+
 function diff(curr: unknown, prev: unknown): StatChange[] {
   const a = flatten(prev);
   const b = flatten(curr);
@@ -115,10 +136,12 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
   const distinctStamps = new Set(snapshots.map(s => s.fetched_at)).size;
   const tiedTime = snapshots.length > 1 && distinctStamps <= 1;
 
-  // player_count only grows as a game progresses, so it is the least-bad proxy
-  // when there is no usable timestamp. Labelled as a proxy in the UI.
+  // Ordered by accumulated stat total — see statTotal. player_count was the
+  // obvious choice and was wrong: it repeats often enough that the arbitrary
+  // tiebreak showed stats going backwards, which cumulative stats cannot do.
   const ordered = tiedTime
     ? [...snapshots].sort((a, b) =>
+        statTotal(a.payload) - statTotal(b.payload) ||
         (a.player_count ?? 0) - (b.player_count ?? 0) ||
         (a.payload_hash ?? '').localeCompare(b.payload_hash ?? ''))
     : snapshots;
@@ -163,10 +186,12 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
             All {snapshots.length} snapshots share one <span className="font-mono">fetched_at</span>
           </p>
           <p className="text-xs text-secondary mt-1 max-w-3xl">
-            They were written in a single batch, so the table records no capture sequence and
-            no gaps between them. The order below is by <span className="font-mono">player_count</span>{' '}
-            as a proxy — treat the sequence numbers and the diffs as indicative, not as evidence of
-            what arrived when. Δt is shown as — rather than 0ms, which would be misleading.
+            They were written in a single batch, so the table records no capture sequence and no
+            gaps between them. The order below is inferred from each payload&apos;s accumulated stat
+            total, which can only grow as a game progresses — treat the sequence numbers and the
+            diffs as indicative, not as evidence of what arrived when. A change showing a stat going
+            <em> down</em> is the inference being wrong, not a stat that decreased. Δt is shown as —
+            rather than 0ms, which would be misleading.
           </p>
         </div>
       )}
@@ -188,7 +213,7 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
                 <th colSpan={2} className={`${TH_GROUP} border-l border-border`}>Capture</th>
               </tr>
               <tr className="border-b border-border bg-gray-50">
-                <th className={`${TH} text-right`} title={tiedTime ? 'Proxy sequence — ordered by player_count, since every row shares one fetched_at' : 'Capture order'}>
+                <th className={`${TH} text-right`} title={tiedTime ? 'Inferred sequence — ordered by accumulated stat total, since every row shares one fetched_at' : 'Capture order'}>
                   {tiedTime ? '# (proxy)' : '#'}
                 </th>
                 <th className={TH}>fetched_at</th>
