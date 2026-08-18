@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import { Fragment } from 'react';
 import { supabase } from '@/lib/supabase';
 import GameHeader, { getEventCounts, getGame } from '../GameHeader';
 import {
@@ -27,6 +26,12 @@ interface PayloadChange {
   stat: string;
   before: string;
   after: string;
+}
+
+interface DisplayRow {
+  snapshot: SnapshotRow;
+  activity: PayloadChange | null;
+  showSnapshot: boolean;
 }
 
 async function getSnapshots(gameId: string): Promise<SnapshotRow[]> {
@@ -138,6 +143,13 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
     changes: index === 0 ? [] : payloadChanges(row.payload, ordered[index - 1].payload),
     isBaseline: index === 0,
   })).reverse();
+  const displayRows: DisplayRow[] = [];
+  for (const { row, changes, isBaseline } of rows) {
+    const activities = isBaseline || changes.length === 0 ? [null] : changes;
+    activities.forEach((activity, index) => {
+      displayRows.push({ snapshot: row, activity, showSnapshot: index === 0 });
+    });
+  }
 
   return (
     <div className="p-5 pb-10">
@@ -158,19 +170,6 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
         )}
       </p>
 
-      <p className="text-muted text-xs mb-3 max-w-4xl">
-        Player activity is calculated from the stored payload against the preceding snapshot and
-        appears directly beneath that snapshot. It shows provider stat movement, <strong>not</strong>
-        a confirmed fantasy-points credit; confirmed credits remain on Game Events.
-      </p>
-
-      {tiedTimes && (
-        <div className="mb-3 rounded-lg border border-amber-border bg-amber-dim px-4 py-3 text-xs text-secondary max-w-4xl">
-          These historical rows share a capture timestamp, so their activity order is inferred from
-          accumulated stats. It is useful for inspection, but is not evidence of live arrival order.
-        </div>
-      )}
-
       {snapshots.length === 0 ? (
         <CaptureEmpty
           table="raw_stat_snapshots"
@@ -186,6 +185,7 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
                 <th className={`${TH_GROUP} border-l border-border`}>Content</th>
                 <th colSpan={2} className={`${TH_GROUP} border-l border-border`}>Capture</th>
                 <th className={`${TH_GROUP} border-l border-border`}>Raw</th>
+                <th colSpan={3} className={`${TH_GROUP} border-l border-border`}>Player activity</th>
               </tr>
               <tr className="border-b border-border bg-gray-50">
                 <th className={TH}>fetched_at</th>
@@ -195,57 +195,41 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
                 <th className={TH}>claimed</th>
                 <th className={TH}>source</th>
                 <th className={TH}>payload</th>
+                <th className={TH}>team</th>
+                <th className={TH}>player</th>
+                <th className={TH}>event</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ row, changes, isBaseline }, i) => (
-                <Fragment key={row.id}>
-                  <tr
-                    className={`border-b border-border align-top ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
-                  >
-                    <td className={TD}>{fmtTime(row.fetched_at)}</td>
-                    <td className={`${TD} text-secondary`} title={row.payload_hash ?? undefined}>
-                      {row.payload_hash ?? '—'}
-                    </td>
-                    <td className={`${TD} text-muted`}>{row.id.slice(0, 8)}</td>
-                    <td className={`${TD} text-right`}>{row.player_count ?? '—'}</td>
-                    <td className="px-3 py-2"><ClaimedPill claimedAt={row.claimed_at} /></td>
-                    <td className="px-3 py-2"><SourcePill source={row.source} /></td>
-                    <td className="px-3 py-2">
+              {displayRows.map(({ snapshot, activity, showSnapshot }, i) => (
+                <tr
+                  key={`${snapshot.id}-${activity ? `${activity.team}-${activity.player}-${activity.stat}` : 'baseline'}`}
+                  className={`border-b border-border last:border-0 align-top ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                >
+                  <td className={TD}>{showSnapshot ? fmtTime(snapshot.fetched_at) : ''}</td>
+                  <td className={`${TD} text-secondary`} title={showSnapshot ? snapshot.payload_hash ?? undefined : undefined}>
+                    {showSnapshot ? snapshot.payload_hash ?? '—' : ''}
+                  </td>
+                  <td className={`${TD} text-muted`}>{showSnapshot ? snapshot.id.slice(0, 8) : ''}</td>
+                  <td className={`${TD} text-right`}>{showSnapshot ? snapshot.player_count ?? '—' : ''}</td>
+                  <td className="px-3 py-2">{showSnapshot && <ClaimedPill claimedAt={snapshot.claimed_at} />}</td>
+                  <td className="px-3 py-2">{showSnapshot && <SourcePill source={snapshot.source} />}</td>
+                  <td className="px-3 py-2">
+                    {showSnapshot && (
                       <details>
                         <summary className="cursor-pointer text-xs text-secondary hover:text-amber font-mono">view</summary>
                         <pre className="mt-2 bg-white border border-border rounded-md p-2 text-xs font-mono text-gray-900 whitespace-pre-wrap break-words max-h-80 overflow-y-auto w-[min(58rem,80vw)]">
-{JSON.stringify(row.payload, null, 2)}
+{JSON.stringify(snapshot.payload, null, 2)}
                         </pre>
                       </details>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-border bg-amber-dim/30">
-                    <td colSpan={7} className="px-5 py-3">
-                      {isBaseline ? (
-                        <span className="text-xs text-muted">Baseline snapshot — no preceding payload to compare.</span>
-                      ) : changes.length === 0 ? (
-                        <span className="text-xs text-muted">No readable player-stat fields changed from the preceding stored payload.</span>
-                      ) : (
-                        <div className="max-w-3xl">
-                          <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5">Payload activity (computed)</p>
-                          <table className="text-xs w-full">
-                            <thead><tr className="text-left text-muted"><th className="pb-1 pr-4">Team</th><th className="pb-1 pr-4">Player</th><th className="pb-1">Event / stat change</th></tr></thead>
-                            <tbody>
-                              {changes.map(change => (
-                                <tr key={`${change.team}-${change.player}-${change.stat}`} className="font-mono text-gray-900">
-                                  <td className="py-0.5 pr-4">{change.team}</td>
-                                  <td className="py-0.5 pr-4">{change.player}</td>
-                                  <td className="py-0.5">{change.stat}: <span className="text-muted">{change.before} →</span> <span className="font-semibold text-success">{change.after}</span></td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                </Fragment>
+                    )}
+                  </td>
+                  <td className={TD}>{activity?.team ?? ''}</td>
+                  <td className={TD}>{activity?.player ?? ''}</td>
+                  <td className={TD}>
+                    {activity ? <>{activity.stat}: <span className="text-muted">{activity.before} →</span> {activity.after}</> : ''}
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
