@@ -43,10 +43,39 @@ async function getSnapshots(gameId: string): Promise<SnapshotRow[]> {
 }
 
 /**
- * A snapshot payload is an array of per-player stat objects shaped
- * { team: { abbreviation }, player: { last_name }, <statName>: value }.
+ * Snapshot payloads come in TWO shapes and the page has to read both, or a live
+ * game renders as a table of "(unnamed)" rows with playerName listed as a stat.
+ *
+ *   BDL-shaped (what the reconstructed rows hold):
+ *     { team: { abbreviation }, player: { last_name }, <statName>: value }
+ *   Normalized (what the poller stores live — NormalizedPlayer in
+ *   poller/types.ts):
+ *     { playerId, playerName, teamAbv, <statName>: value }
+ *
  * Flattened to "player → stat → value" so two snapshots can be compared.
  */
+const IDENTITY_KEYS = new Set(['team', 'player', 'playerId', 'playerName', 'teamAbv']);
+
+function identify(e: Record<string, unknown>): string {
+  const nested = e.player && typeof e.player === 'object'
+    ? (e.player as Record<string, unknown>).last_name
+    : null;
+  const name =
+    (typeof nested === 'string' && nested) ||
+    (typeof e.playerName === 'string' && e.playerName) ||
+    '(unnamed)';
+
+  const nestedTeam = e.team && typeof e.team === 'object'
+    ? (e.team as Record<string, unknown>).abbreviation
+    : null;
+  const team =
+    (typeof nestedTeam === 'string' && nestedTeam) ||
+    (typeof e.teamAbv === 'string' && e.teamAbv) ||
+    null;
+
+  return team ? `${name} (${team})` : name;
+}
+
 function flatten(payload: unknown): Map<string, Map<string, unknown>> {
   const out = new Map<string, Map<string, unknown>>();
   if (!Array.isArray(payload)) return out;
@@ -54,18 +83,11 @@ function flatten(payload: unknown): Map<string, Map<string, unknown>> {
   for (const entry of payload) {
     if (!entry || typeof entry !== 'object') continue;
     const e = entry as Record<string, unknown>;
-    const player = e.player && typeof e.player === 'object'
-      ? String((e.player as Record<string, unknown>).last_name ?? '')
-      : '';
-    const team = e.team && typeof e.team === 'object'
-      ? (e.team as Record<string, unknown>).abbreviation
-      : null;
-    const name = player || '(unnamed)';
-    const key = team ? `${name} (${team})` : name;
+    const key = identify(e);
 
     const stats = out.get(key) ?? new Map<string, unknown>();
     for (const [k, v] of Object.entries(e)) {
-      if (k === 'player' || k === 'team') continue;
+      if (IDENTITY_KEYS.has(k)) continue;
       stats.set(k, v);
     }
     out.set(key, stats);
@@ -87,7 +109,7 @@ function statTotal(payload: unknown): number {
   for (const entry of payload) {
     if (!entry || typeof entry !== 'object') continue;
     for (const [k, v] of Object.entries(entry as Record<string, unknown>)) {
-      if (k === 'team' || k === 'player') continue;
+      if (IDENTITY_KEYS.has(k)) continue;
       if (typeof v === 'number') sum += v;
     }
   }
