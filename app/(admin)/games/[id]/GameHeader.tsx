@@ -67,10 +67,16 @@ export function betTables(sport: string | null) {
 }
 
 const TABS = [
-  { key: 'players',    label: 'Players',     suffix: ''            },
-  { key: 'raw-events', label: 'Raw Events',  suffix: '/raw-events' },
-  { key: 'events',     label: 'Game Events', suffix: '/events'     },
-  { key: 'bets',       label: 'Bets',        suffix: '/bets'       },
+  { key: 'players',       label: 'Players',     suffix: ''                },
+  { key: 'raw-events',    label: 'Raw Events',  suffix: '/raw-events'     },
+  { key: 'events',        label: 'Game Events', suffix: '/events'         },
+  { key: 'bets',          label: 'Bets',        suffix: '/bets'           },
+  // Provider capture, one tab per table. Present on every game: a game with
+  // nothing captured shows an empty state that says why, which is itself the
+  // useful answer.
+  { key: 'raw-plays',     label: 'Plays',       suffix: '/raw-plays'      },
+  { key: 'raw-snapshots', label: 'Snapshots',   suffix: '/raw-snapshots'  },
+  { key: 'raw-state',     label: 'Game State',  suffix: '/raw-state'      },
 ] as const;
 
 export type GameTab = (typeof TABS)[number]['key'];
