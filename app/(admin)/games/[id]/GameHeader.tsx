@@ -137,7 +137,7 @@ export default function GameHeader({ game, active, counts }: { game: GameRow; ac
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {game.sport === 'NFL' && <GenerateRosterButton gameId={game.id} />}
+            {game.sport === 'NFL' && active !== 'bets' && <GenerateRosterButton gameId={game.id} />}
             <SetFinishedButton gameId={game.id} currentStatus={game.status} />
             {hasAudit && (
               <a
