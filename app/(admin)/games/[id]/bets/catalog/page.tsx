@@ -9,8 +9,10 @@ type CatalogEntry = {
   bet_type: string;
   name: string;
   trigger_description: string;
+  trigger_context: string | null;
   option_format: string;
   pricing: Record<string, unknown>;
+  trigger_rule: Record<string, unknown>;
   manual_openable: boolean;
   active: boolean;
   implementation_status: 'live' | 'planned' | 'retired';
@@ -57,7 +59,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
   const { bets: betsTable, playerBets: playerBetsTable } = betTables(game.sport);
   const [counts, catalogResult, historyResult, picksResult, currentResult] = await Promise.all([
     getEventCounts(game.id),
-    supabase.from('bet_catalog').select('id, bet_type, name, trigger_description, option_format, pricing, manual_openable, active, implementation_status').eq('sport', game.sport === 'NHL' ? 'NHL' : 'NFL').order('sort_order'),
+    supabase.from('bet_catalog').select('id, bet_type, name, trigger_description, trigger_context, option_format, pricing, trigger_rule, manual_openable, active, implementation_status').eq('sport', game.sport === 'NHL' ? 'NHL' : 'NFL').order('sort_order'),
     // History is sport-wide: it answers how often each supported bet has
     // actually appeared across all recorded games of this sport.
     supabase.from(betsTable).select('game_code, bet_id, trigger_event_type, status, winning_option, option_a, option_b').limit(10000),
@@ -94,6 +96,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Bet</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Trigger / timing</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Options</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Trigger rule</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Offered this game</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Latest multiplier</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Historical player picks</th>
@@ -115,8 +118,9 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
                     <div>{entry.name}</div>
                     <div className="font-mono text-xs text-muted mt-0.5">{entry.bet_type}</div>
                   </td>
-                  <td className="px-3 py-2 text-secondary">{entry.trigger_description}</td>
+                  <td className="px-3 py-2 text-secondary">{entry.trigger_context ?? entry.trigger_description}</td>
                   <td className="px-3 py-2 text-secondary">{entry.option_format}</td>
+                  <td className="px-3 py-2 text-secondary"><details><summary className="cursor-pointer text-xs text-amber whitespace-nowrap">View JSON</summary><pre className="mt-2 p-2 bg-gray-50 border border-border rounded text-xs font-mono whitespace-pre-wrap min-w-80">{JSON.stringify(entry.trigger_rule, null, 2)}</pre></details></td>
                   <td className="px-3 py-2 text-right font-mono text-secondary">{offeredThisGame}</td>
                   <td className="px-3 py-2 font-mono text-secondary">
                     {latest ? `${latest.multiplier_a} / ${latest.multiplier_b}` : catalogMultiplier(entry.pricing)}

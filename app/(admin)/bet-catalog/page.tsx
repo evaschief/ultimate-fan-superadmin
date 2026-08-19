@@ -4,6 +4,7 @@ type CatalogRow = {
   id: string; sport: 'NFL' | 'NHL'; bet_type: string; name: string;
   trigger_group: string; trigger_context: string | null; trigger_description: string;
   description: string | null; option_format: string; pricing: Record<string, unknown>;
+  trigger_rule: Record<string, unknown>;
   default_window_seconds: number; display_tier: number | null; is_player_bet: boolean;
   average_plays_to_resolve: number | null; base_excitement_rating: number | null;
   active: boolean; implementation_status: 'live' | 'planned' | 'retired';
@@ -22,7 +23,7 @@ export default async function GlobalBetCatalogPage({ searchParams = {} }: { sear
   const sport = stringValue(searchParams.sport) || 'NFL';
   const tier = stringValue(searchParams.tier);
   const status = stringValue(searchParams.status) || 'all';
-  const { data } = await supabase.from('bet_catalog').select('id, sport, bet_type, name, trigger_group, trigger_context, trigger_description, description, option_format, pricing, default_window_seconds, display_tier, is_player_bet, average_plays_to_resolve, base_excitement_rating, active, implementation_status').eq('sport', sport).order('sort_order');
+  const { data } = await supabase.from('bet_catalog').select('id, sport, bet_type, name, trigger_group, trigger_context, trigger_description, description, option_format, pricing, trigger_rule, default_window_seconds, display_tier, is_player_bet, average_plays_to_resolve, base_excitement_rating, active, implementation_status').eq('sport', sport).order('sort_order');
   const catalog = ((data ?? []) as CatalogRow[]).filter(row => {
     if (tier && String(row.display_tier ?? '') !== tier) return false;
     if (status !== 'all' && row.implementation_status !== status) return false;
@@ -38,7 +39,7 @@ export default async function GlobalBetCatalogPage({ searchParams = {} }: { sear
       <button type="submit" className="btn-secondary text-sm">Apply</button>
     </form>
     <div className="card p-0 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border bg-gray-50">
-      {['Bet type','Fires when','Description','Type','Player bet','Avg plays to resolve','Rating','Options','Pricing rule','Window (sec)','Status'].map(header => <th key={header} className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">{header}</th>)}
+      {['Bet type','Fires when','Description','Type','Player bet','Avg plays to resolve','Rating','Options','Pricing rule','Trigger rule','Window (sec)','Status'].map(header => <th key={header} className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">{header}</th>)}
     </tr></thead><tbody>{catalog.map((row, index) => <tr key={row.id} className={`border-b border-border last:border-0 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
       <td className="px-3 py-2 text-gray-900 min-w-44"><div>{row.name}</div><div className="font-mono text-xs text-muted mt-0.5">{row.bet_type}</div></td>
       <td className="px-3 py-2 text-secondary min-w-48">{row.trigger_context ?? row.trigger_description}</td>
@@ -49,8 +50,9 @@ export default async function GlobalBetCatalogPage({ searchParams = {} }: { sear
       <td className="px-3 py-2 font-mono text-secondary">{row.base_excitement_rating ?? '—'}</td>
       <td className="px-3 py-2 text-secondary">{row.option_format}</td>
       <td className="px-3 py-2 font-mono text-xs text-secondary">{pricingText(row.pricing)}</td>
+      <td className="px-3 py-2 text-secondary"><details><summary className="cursor-pointer text-xs text-amber whitespace-nowrap">View JSON</summary><pre className="mt-2 p-2 bg-gray-50 border border-border rounded text-xs font-mono whitespace-pre-wrap min-w-80">{JSON.stringify(row.trigger_rule, null, 2)}</pre></details></td>
       <td className="px-3 py-2 font-mono text-secondary">{row.default_window_seconds}</td>
       <td className="px-3 py-2 text-secondary">{row.implementation_status}</td>
-    </tr>)}{catalog.length === 0 && <tr><td colSpan={11} className="px-3 py-8 text-center text-muted">No catalogue definitions match these filters.</td></tr>}</tbody></table></div>
+    </tr>)}{catalog.length === 0 && <tr><td colSpan={12} className="px-3 py-8 text-center text-muted">No catalogue definitions match these filters.</td></tr>}</tbody></table></div>
   </div>;
 }
