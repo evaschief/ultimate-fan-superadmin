@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import GameHeader, { getEventCounts, getGame } from '../GameHeader';
 
@@ -17,7 +18,7 @@ function signedPoints(points: number) {
   return `${points >= 0 ? '+' : ''}${points.toLocaleString()}`;
 }
 
-export default async function GameAthletesPage({ params }: { params: { id: string } }) {
+export default async function GameAthletesPage({ params, searchParams }: { params: { id: string }; searchParams?: { view?: string } }) {
   const game = await getGame(params.id);
   if (!game) notFound();
   const [counts, result] = await Promise.all([
@@ -52,20 +53,28 @@ export default async function GameAthletesPage({ params }: { params: { id: strin
     current.games.set(historyCredit.game_id, (current.games.get(historyCredit.game_id) ?? 0) + Number(historyCredit.points));
     athleteHistory.set(historyCredit.athlete_id, current);
   }
+  const byPlayer = Array.from(new Map(credits.map((credit) => [credit.athlete_id, credit])).values())
+    .map((credit) => ({ credit, gamePoints: credits.filter((item) => item.athlete_id === credit.athlete_id).reduce((sum, item) => sum + Number(item.points), 0) }))
+    .sort((a, b) => a.credit.athlete_name.split('.').slice(-1)[0].localeCompare(b.credit.athlete_name.split('.').slice(-1)[0]) || a.credit.athlete_name.localeCompare(b.credit.athlete_name));
   const hasBackfill = credits.some((credit) => credit.source === 'backfill');
+  const view = searchParams?.view === 'players' ? 'players' : 'feed';
 
   return (
     <div className="p-5 pb-10">
       <GameHeader game={game} active="athletes" counts={counts} />
       <p className="text-sm text-secondary mb-4">Every Ultimate Fan point awarded to an athlete in this game. This is the scoring ledger, not a user lineup or balance.</p>
       {hasBackfill && <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">This historical game is populated from its stored final provider snapshot. It shows reconstructed athlete totals, not the original live, play-by-play scoring timeline.</div>}
-      <div className="card p-0 overflow-hidden"><div className="px-3 py-2 border-b border-border bg-gray-50 text-xs font-semibold text-muted uppercase tracking-wider">Credit activity — newest first</div><table className="w-full text-sm"><thead><tr className="border-b border-border"><th className="text-left px-3 py-2 text-xs text-muted uppercase">Time</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Period</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Athlete</th><th className="text-right px-3 py-2 text-xs text-muted uppercase">Points</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Team</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Source</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Reason</th></tr></thead><tbody>
+      <div className="border-b border-border flex items-center gap-1 mb-4"><Link href={`/games/${game.id}/athletes`} className={`px-3 py-2 text-sm font-medium -mb-px border-b-2 ${view === 'feed' ? 'border-amber text-amber' : 'border-transparent text-secondary hover:text-gray-900'}`}>Live credit feed</Link><Link href={`/games/${game.id}/athletes?view=players`} className={`px-3 py-2 text-sm font-medium -mb-px border-b-2 ${view === 'players' ? 'border-amber text-amber' : 'border-transparent text-secondary hover:text-gray-900'}`}>By player</Link></div>
+      {view === 'feed' ? <div className="card p-0 overflow-hidden"><div className="px-3 py-2 border-b border-border bg-gray-50 text-xs font-semibold text-muted uppercase tracking-wider">Credit activity — newest first</div><table className="w-full text-sm"><thead><tr className="border-b border-border"><th className="text-left px-3 py-2 text-xs text-muted uppercase">Time</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Period</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Athlete</th><th className="text-right px-3 py-2 text-xs text-muted uppercase">Points</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Team</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Source</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Reason</th></tr></thead><tbody>
         {credits.map((credit, index) => {
           const history = athleteHistory.get(credit.athlete_id);
           return <tr key={`${credit.athlete_id}-${credit.created_at}-${index}`} className={`border-b border-border last:border-0 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}><td className="px-3 py-2 font-mono text-xs text-secondary">{new Date(credit.created_at).toLocaleTimeString()}</td><td className="px-3 py-2 text-secondary">{credit.period == null ? '—' : `Q${credit.period}`}</td><td className="px-3 py-2 font-medium"><details><summary className="cursor-pointer text-amber hover:underline">{credit.athlete_name}</summary><div className="mt-2 min-w-64 rounded border border-border bg-white p-2 text-xs font-normal text-secondary shadow-sm"><div className="mb-1 font-medium text-gray-900">Total fantasy points: <span className={history && history.total >= 0 ? 'text-success' : 'text-danger'}>{signedPoints(history?.total ?? 0)}</span></div><div className="text-muted uppercase tracking-wide mb-1">Game history</div>{Array.from(history?.games.entries() ?? []).map(([historyGameId, points]) => <div key={historyGameId} className="flex justify-between gap-3 py-0.5"><span>{gameLabels.get(historyGameId) ?? historyGameId}</span><span className={points >= 0 ? 'text-success font-mono' : 'text-danger font-mono'}>{signedPoints(points)}</span></div>)}</div></details></td><td className={`px-3 py-2 text-right font-mono ${credit.points >= 0 ? 'text-success' : 'text-danger'}`}>{signedPoints(Number(credit.points))}</td><td className="px-3 py-2 text-secondary">{credit.source_detail?.team ?? '—'}</td><td className="px-3 py-2 text-secondary">{credit.source}</td><td className="px-3 py-2 text-secondary">{credit.reason}</td></tr>;
         })}
         {credits.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-muted">No athlete credits yet. New live scoring events will appear here.</td></tr>}
-      </tbody></table></div>
+      </tbody></table></div> : <div className="card p-0 overflow-hidden"><div className="px-3 py-2 border-b border-border bg-gray-50 text-xs font-semibold text-muted uppercase tracking-wider">Players — last name A–Z</div><table className="w-full text-sm"><thead><tr className="border-b border-border"><th className="text-left px-3 py-2 text-xs text-muted uppercase">Athlete</th><th className="text-right px-3 py-2 text-xs text-muted uppercase">This game</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Team</th><th className="text-left px-3 py-2 text-xs text-muted uppercase">Source</th></tr></thead><tbody>
+        {byPlayer.map(({ credit, gamePoints }, index) => { const history = athleteHistory.get(credit.athlete_id); return <tr key={credit.athlete_id} className={`border-b border-border last:border-0 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}><td className="px-3 py-2 font-medium"><details><summary className="cursor-pointer text-amber hover:underline">{credit.athlete_name}</summary><div className="mt-2 min-w-64 rounded border border-border bg-white p-2 text-xs font-normal text-secondary shadow-sm"><div className="mb-1 font-medium text-gray-900">Total fantasy points: <span className={history && history.total >= 0 ? 'text-success' : 'text-danger'}>{signedPoints(history?.total ?? 0)}</span></div><div className="text-muted uppercase tracking-wide mb-1">Game history</div>{Array.from(history?.games.entries() ?? []).map(([historyGameId, points]) => <div key={historyGameId} className="flex justify-between gap-3 py-0.5"><span>{gameLabels.get(historyGameId) ?? historyGameId}</span><span className={points >= 0 ? 'text-success font-mono' : 'text-danger font-mono'}>{signedPoints(points)}</span></div>)}</div></details></td><td className={`px-3 py-2 text-right font-mono ${gamePoints >= 0 ? 'text-success' : 'text-danger'}`}>{signedPoints(gamePoints)}</td><td className="px-3 py-2 text-secondary">{credit.source_detail?.team ?? '—'}</td><td className="px-3 py-2 text-secondary">{credit.source}</td></tr>; })}
+        {byPlayer.length === 0 && <tr><td colSpan={4} className="px-3 py-8 text-center text-muted">No athlete credits yet. New live scoring events will appear here.</td></tr>}
+      </tbody></table></div>}
     </div>
   );
 }
