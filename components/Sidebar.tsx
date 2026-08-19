@@ -23,6 +23,17 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    label: 'Bet Catalogue',
+    href: '/bet-catalog',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M7 7h.01M7 3h5a2 2 0 012 2v5l-7 7a2 2 0 01-2.828 0l-1.172-1.172a2 2 0 010-2.828l7-7A2 2 0 017 3z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 14l3 3m-1-5l3 3" />
+      </svg>
+    ),
+  },
+  {
     label: 'Venues',
     href: '/venues',
     icon: (
