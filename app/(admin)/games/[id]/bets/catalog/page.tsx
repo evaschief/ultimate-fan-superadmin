@@ -51,7 +51,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
         Every bet type the automatic game flow can create for {game.sport ?? 'NFL'}.
       </p>
       <p className="text-muted text-xs mb-3">
-        Frequency and outcome split are calculated from all stored <span className="font-mono">{betsTable}</span> rows for this sport.
+        Times opened and winner split are calculated from all stored <span className="font-mono">{betsTable}</span> rows for this sport.
         {' '}The game continues to run normally without anyone using it; opening a catalog bet is an optional Superadmin action.
       </p>
       <div className="card p-0 overflow-x-auto">
@@ -61,10 +61,10 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Bet</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Trigger / timing</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Options</th>
-              <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Times offered</th>
+              <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Times opened</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Settled</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Voided</th>
-              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Historical outcome split</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Historical winner split</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">This game / optional action</th>
             </tr>
           </thead>
