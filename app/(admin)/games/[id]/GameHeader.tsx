@@ -66,7 +66,7 @@ export function betTables(sport: string | null) {
 }
 
 const TABS = [
-  { key: 'players',       label: 'Players',     suffix: ''                },
+  { key: 'players',       label: 'Users',       suffix: ''                },
   { key: 'events',        label: 'Game Events', suffix: '/events'         },
   { key: 'bets',          label: 'Bets',        suffix: '/bets'           },
   // Provider capture, one tab per table. Present on every game: a game with
