@@ -5,6 +5,7 @@ import GameHeader, { getEventCounts, getGame } from '../GameHeader';
 import {
   CaptureEmpty, ClaimedPill, SourcePill, TD, TH, TH_GROUP, fmtTime, getCaptureStart,
 } from '../rawCapture';
+import FantasyScoringTable from './FantasyScoringTable';
 
 // raw_stat_snapshots — one row per stored, hash-distinct provider stats payload.
 // This is intentionally a direct table view: every displayed field is either a
@@ -233,40 +234,43 @@ export default async function RawSnapshotsPage({
           captureStart={captureStart}
         />
       ) : view === 'totals' && latestSnapshot ? (
-        <div className="card p-0 overflow-x-auto">
-          <div className="px-4 py-3 border-b border-border text-xs text-secondary">
-            Stored row: <span className="font-mono text-gray-900">{latestSnapshot.id}</span>
-            {' '}· fetched <span className="font-mono text-gray-900">{fmtTime(latestSnapshot.fetched_at)}</span>
-            {' '}· <SourcePill source={latestSnapshot.source} />
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-gray-50">
-                <th className={TH}>team</th>
-                <th className={TH}>player</th>
-                <th className={TH}>provider stat totals from payload</th>
-              </tr>
-            </thead>
-            <tbody>
-              {latestPlayers.map((player, i) => (
-                <tr key={`${player.team}-${player.player}-${i}`} className={`border-b border-border last:border-0 align-top ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                  <td className={TD}>{player.team}</td>
-                  <td className={TD}>{player.player}</td>
-                  <td className={TD}>
-                    {player.stats.length
-                      ? player.stats.map(stat => `${stat.name}: ${stat.value}`).join(' · ')
-                      : <span className="text-muted">—</span>}
-                  </td>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] items-start">
+          <div className="card p-0 overflow-x-auto">
+            <div className="px-4 py-3 border-b border-border text-xs text-secondary">
+              Stored row: <span className="font-mono text-gray-900">{latestSnapshot.id}</span>
+              {' '}· fetched <span className="font-mono text-gray-900">{fmtTime(latestSnapshot.fetched_at)}</span>
+              {' '}· <SourcePill source={latestSnapshot.source} />
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-gray-50">
+                  <th className={TH}>team</th>
+                  <th className={TH}>player</th>
+                  <th className={TH}>provider stat totals from payload</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <details className="px-4 py-3 border-t border-border">
-            <summary className="cursor-pointer text-xs text-secondary hover:text-amber font-mono">view exact payload</summary>
-            <pre className="mt-2 bg-white border border-border rounded-md p-2 text-xs font-mono text-gray-900 whitespace-pre-wrap break-words max-h-80 overflow-y-auto">
+              </thead>
+              <tbody>
+                {latestPlayers.map((player, i) => (
+                  <tr key={`${player.team}-${player.player}-${i}`} className={`border-b border-border last:border-0 align-top ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <td className={TD}>{player.team}</td>
+                    <td className={TD}>{player.player}</td>
+                    <td className={TD}>
+                      {player.stats.length
+                        ? player.stats.map(stat => `${stat.name}: ${stat.value}`).join(' · ')
+                        : <span className="text-muted">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <details className="px-4 py-3 border-t border-border">
+              <summary className="cursor-pointer text-xs text-secondary hover:text-amber font-mono">view exact payload</summary>
+              <pre className="mt-2 bg-white border border-border rounded-md p-2 text-xs font-mono text-gray-900 whitespace-pre-wrap break-words max-h-80 overflow-y-auto">
 {JSON.stringify(latestSnapshot.payload, null, 2)}
-            </pre>
-          </details>
+              </pre>
+            </details>
+          </div>
+          <FantasyScoringTable sport={game.sport} />
         </div>
       ) : (
         <div className="card p-0 overflow-x-auto">
