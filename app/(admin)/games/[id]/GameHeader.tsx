@@ -73,7 +73,7 @@ const TABS = [
   // nothing captured shows an empty state that says why, which is itself the
   // useful answer.
   { key: 'raw-plays',     label: 'Raw Plays',   suffix: '/raw-plays'      },
-  { key: 'raw-snapshots', label: 'Snapshots',   suffix: '/raw-snapshots'  },
+  { key: 'raw-snapshots', label: 'Raw Snapshots', suffix: '/raw-snapshots' },
   { key: 'raw-state',     label: 'Game State',  suffix: '/raw-state'      },
 ] as const;
 

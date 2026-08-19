@@ -182,18 +182,16 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-gray-50">
-                <th colSpan={3} className={TH_GROUP}>Stored columns</th>
-                <th className={`${TH_GROUP} border-l border-border`}>Content</th>
-                <th colSpan={2} className={`${TH_GROUP} border-l border-border`}>Capture</th>
-                <th className={`${TH_GROUP} border-l border-border`}>Raw</th>
-                <th colSpan={3} className={`${TH_GROUP} border-l border-border`}>Player activity</th>
+                <th colSpan={8} className={TH_GROUP}>raw_stat_snapshots stored columns</th>
+                <th colSpan={3} className={`${TH_GROUP} border-l border-border`}>Read from payload for display</th>
               </tr>
               <tr className="border-b border-border bg-gray-50">
+                <th className={TH}>game_id</th>
                 <th className={TH}>fetched_at</th>
                 <th className={TH}>payload_hash</th>
                 <th className={TH}>id</th>
-                <th className={`${TH} text-right`}>player_count</th>
-                <th className={TH}>claimed</th>
+                <th className={TH}>player_count</th>
+                <th className={TH}>claimed_at</th>
                 <th className={TH}>source</th>
                 <th className={TH}>payload</th>
                 <th className={TH}>team</th>
@@ -207,12 +205,13 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
                   key={`${snapshot.id}-${activity ? `${activity.team}-${activity.player}-${activity.stat}` : 'baseline'}`}
                   className={`border-b border-border last:border-0 align-top ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                 >
+                  <td className={`${TD} text-muted`}>{game.id.slice(0, 8)}</td>
                   <td className={TD}>{showSnapshot ? fmtTime(snapshot.fetched_at) : ''}</td>
                   <td className={`${TD} text-secondary`} title={showSnapshot ? snapshot.payload_hash ?? undefined : undefined}>
                     {showSnapshot ? snapshot.payload_hash ?? '—' : ''}
                   </td>
                   <td className={`${TD} text-muted`}>{showSnapshot ? snapshot.id.slice(0, 8) : ''}</td>
-                  <td className={`${TD} text-right`}>{showSnapshot ? snapshot.player_count ?? '—' : ''}</td>
+                  <td className={TD}>{showSnapshot ? snapshot.player_count ?? '—' : ''}</td>
                   <td className="px-3 py-2">{showSnapshot && <ClaimedPill claimedAt={snapshot.claimed_at} />}</td>
                   <td className="px-3 py-2">{showSnapshot && <SourcePill source={snapshot.source} />}</td>
                   <td className="px-3 py-2">
