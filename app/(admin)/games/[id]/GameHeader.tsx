@@ -74,7 +74,7 @@ const TABS = [
   // useful answer.
   { key: 'raw-plays',     label: 'Raw Plays',   suffix: '/raw-plays'      },
   { key: 'raw-snapshots', label: 'Raw Snapshots', suffix: '/raw-snapshots' },
-  { key: 'raw-state',     label: 'Game State',  suffix: '/raw-state'      },
+  { key: 'raw-state',     label: 'Raw State',   suffix: '/raw-state'      },
 ] as const;
 
 export type GameTab = (typeof TABS)[number]['key'];
