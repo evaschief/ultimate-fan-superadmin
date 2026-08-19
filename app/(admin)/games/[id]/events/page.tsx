@@ -33,10 +33,10 @@ export default async function GameEventsPage({ params }: { params: { id: string 
       <GameHeader game={game} active="events" counts={counts} />
       <p className="text-secondary text-sm mb-1">
         What happened on the field, newest first — scoring plays, stat lines, period boundaries.
-        Bet and fantasy-scoring rows are on the Raw Events tab.
+        Bet and fantasy-scoring rows are recorded separately from this gameplay view.
       </p>
       <p className="text-muted text-xs mb-3">
-        One column per column on <span className="font-mono">game_events</span>, all{' '}
+        The stored event record and its raw <span className="font-mono">event_data</span> payload appear first; payload-derived display fields follow. One column per column on <span className="font-mono">game_events</span>, all{' '}
         {GAME_EVENT_COLUMNS.length} of them, scrolling sideways. Most of the play-by-play
         columns are unwritten — use the toggle to drop the ones with no value for this game.
       </p>

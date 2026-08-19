@@ -39,26 +39,29 @@ export interface EventColumn {
 }
 
 export const GAME_EVENT_COLUMNS: EventColumn[] = [
-  { key: 'id',                     group: 'Identity' },
-  { key: 'event_id',               group: 'Identity' },
+  // Directly stored event record. event_data is the raw input to the
+  // following display fields, so it intentionally appears before them.
+  { key: 'id',                     group: 'Stored game_events row' },
+  { key: 'event_id',               group: 'Stored game_events row' },
+  { key: 'game_code',              group: 'Stored game_events row' },
+  { key: 'game_id',                group: 'Stored game_events row' },
+  { key: 'event_type',             group: 'Stored game_events row' },
+  { key: 'bet_id',                 group: 'Stored game_events row' },
+  { key: 'winning_option',         group: 'Stored game_events row' },
+  { key: 'created_at',             group: 'Stored game_events row' },
+  { key: 'event_data',             group: 'Raw event payload' },
 
-  { key: 'game_code',              group: 'Game linkage' },
-  { key: 'game_id',                group: 'Game linkage' },
-
-  { key: 'event_type',             group: 'Classification' },
+  // Fields extracted / flattened from provider payloads for display.
+  { key: 'type_slug',              group: 'Read from payload' },
   { key: 'type_slug',              group: 'Classification' },
   { key: 'type_abbreviation',      group: 'Classification' },
   { key: 'type_text',              group: 'Classification' },
   { key: 'play_text',              group: 'Classification' },
-  { key: 'short_text',             group: 'Classification' },
-
-  { key: 'bet_id',                 group: 'Bet linkage' },
-  { key: 'winning_option',         group: 'Bet linkage' },
+  { key: 'short_text',             group: 'Read from payload' },
 
   { key: 'period',                 group: 'Timing' },
   { key: 'clock',                  group: 'Timing' },
   { key: 'wallclock',              group: 'Timing' },
-  { key: 'created_at',             group: 'Timing' },
 
   { key: 'team',                   group: 'Play context' },
   { key: 'player',                 group: 'Play context' },
@@ -82,7 +85,6 @@ export const GAME_EVENT_COLUMNS: EventColumn[] = [
   { key: 'away_score',             group: 'Score state' },
   { key: 'home_win_probability',   group: 'Score state' },
 
-  { key: 'event_data',             group: 'Raw payload' },
 ];
 
 /** Consecutive runs of the same group, for the spanning header row. */
