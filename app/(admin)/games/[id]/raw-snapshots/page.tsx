@@ -163,7 +163,8 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
         {snapshots.length > 0 ? (
           <>
             <span className="text-gray-900 font-semibold">{snapshots.length} stored snapshots</span>
-            {' '}— expand <span className="font-mono">payload</span> to inspect the exact player-stat array.
+            {' '}— Team, Player and Event are read only from each row&apos;s stored <span className="font-mono">payload</span>;
+            {' '}expand it to inspect the exact player-stat array.
           </>
         ) : (
           <>Nothing captured for this game.</>

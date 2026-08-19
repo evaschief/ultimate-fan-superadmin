@@ -32,18 +32,17 @@ export interface GameRow {
   flags: { is_sim?: boolean } | null;
 }
 
-/** Rows written for this game, so a game recording nothing is visible at a glance. */
+/** Rows written to the derived app-event table for this game. */
 export interface EventCounts {
   gameEvents: number;
-  rawEvents: number;
 }
 
 export async function getEventCounts(gameId: string): Promise<EventCounts> {
-  const [{ count: gameEvents }, { count: rawEvents }] = await Promise.all([
-    supabase.from('game_events').select('id', { count: 'exact', head: true }).eq('game_code', gameId),
-    supabase.from('raw_events').select('id', { count: 'exact', head: true }).eq('game_code', gameId),
-  ]);
-  return { gameEvents: gameEvents ?? 0, rawEvents: rawEvents ?? 0 };
+  const { count: gameEvents } = await supabase
+    .from('game_events')
+    .select('id', { count: 'exact', head: true })
+    .eq('game_code', gameId);
+  return { gameEvents: gameEvents ?? 0 };
 }
 
 export async function getGame(id: string): Promise<GameRow | null> {
@@ -68,13 +67,12 @@ export function betTables(sport: string | null) {
 
 const TABS = [
   { key: 'players',       label: 'Players',     suffix: ''                },
-  { key: 'raw-events',    label: 'Raw Events',  suffix: '/raw-events'     },
   { key: 'events',        label: 'Game Events', suffix: '/events'         },
   { key: 'bets',          label: 'Bets',        suffix: '/bets'           },
   // Provider capture, one tab per table. Present on every game: a game with
   // nothing captured shows an empty state that says why, which is itself the
   // useful answer.
-  { key: 'raw-plays',     label: 'Plays',       suffix: '/raw-plays'      },
+  { key: 'raw-plays',     label: 'Raw Plays',   suffix: '/raw-plays'      },
   { key: 'raw-snapshots', label: 'Snapshots',   suffix: '/raw-snapshots'  },
   { key: 'raw-state',     label: 'Game State',  suffix: '/raw-state'      },
 ] as const;
@@ -165,7 +163,7 @@ export default function GameHeader({ game, active, counts }: { game: GameRow; ac
         />
         {counts && (
           <span className="text-xs text-secondary font-mono">
-            {counts.gameEvents.toLocaleString()} game_events · {counts.rawEvents.toLocaleString()} raw_events
+            {counts.gameEvents.toLocaleString()} game_events
           </span>
         )}
         {counts && counts.gameEvents === 0 && game.status === 'ended' && (
