@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import GameHeader, { betTables, getEventCounts, getGame } from '../../GameHeader';
 import { catalogForSport } from '@/lib/betCatalog';
+import OpenCatalogBetButton from './OpenCatalogBetButton';
 
 type BetHistoryRow = {
   trigger_event_type: string | null;
@@ -40,13 +42,17 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
 
   return (
     <div className="p-5 pb-10">
-      <GameHeader game={game} active="bet-catalog" counts={counts} />
+      <GameHeader game={game} active="bets" counts={counts} />
+      <div className="flex items-center gap-1 border-b border-border mb-4">
+        <Link href={`/games/${game.id}/bets`} className="px-3 py-2 text-sm font-medium -mb-px border-b-2 border-transparent text-secondary hover:text-gray-900">Bet history</Link>
+        <Link href={`/games/${game.id}/bets/catalog`} className="px-3 py-2 text-sm font-medium -mb-px border-b-2 border-amber text-amber">Bet catalog</Link>
+      </div>
       <p className="text-secondary text-sm mb-1">
         Every bet type the automatic game flow can create for {game.sport ?? 'NFL'}.
       </p>
       <p className="text-muted text-xs mb-3">
         Frequency and outcome split are calculated from all stored <span className="font-mono">{betsTable}</span> rows for this sport.
-        {' '}This catalog is read-only: the game continues to run normally without anyone using it.
+        {' '}The game continues to run normally without anyone using it; opening a catalog bet is an optional Superadmin action.
       </p>
       <div className="card p-0 overflow-x-auto">
         <table className="w-full text-sm">
@@ -59,7 +65,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Settled</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Voided</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Historical outcome split</th>
-              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">This game</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">This game / optional action</th>
             </tr>
           </thead>
           <tbody>
@@ -81,7 +87,8 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
                   <td className="px-3 py-2 text-right font-mono text-secondary">{voided}</td>
                   <td className="px-3 py-2 text-secondary">{outcomeSplit(rows)}</td>
                   <td className="px-3 py-2">
-                    {open ? <span className="text-xs bg-amber-dim text-amber border border-amber-border px-2 py-0.5 rounded-full font-semibold">Open now</span>
+                    {open ? <span className="text-xs bg-amber-dim text-amber border border-amber-border px-2 py-0.5 rounded-full font-semibold">Already open</span>
+                      : entry.manualOpenable && game.status === 'live' ? <OpenCatalogBetButton gameId={game.id} templateId={entry.id} />
                       : <span className="text-xs text-muted">Automatic on trigger</span>}
                   </td>
                 </tr>

@@ -69,7 +69,6 @@ const TABS = [
   { key: 'players',       label: 'Players',     suffix: ''                },
   { key: 'events',        label: 'Game Events', suffix: '/events'         },
   { key: 'bets',          label: 'Bets',        suffix: '/bets'           },
-  { key: 'bet-catalog',   label: 'Bet Catalog', suffix: '/bets/catalog'   },
   // Provider capture, one tab per table. Present on every game: a game with
   // nothing captured shows an empty state that says why, which is itself the
   // useful answer.

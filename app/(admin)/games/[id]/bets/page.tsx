@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import GameHeader, { getEventCounts, getGame, betTables } from '../GameHeader';
 
@@ -57,6 +58,11 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
   return (
     <div className="p-5 pb-10">
       <GameHeader game={game} active="bets" counts={counts} />
+
+      <div className="flex items-center gap-1 border-b border-border mb-4">
+        <Link href={`/games/${game.id}/bets`} className="px-3 py-2 text-sm font-medium -mb-px border-b-2 border-amber text-amber">Bet history</Link>
+        <Link href={`/games/${game.id}/bets/catalog`} className="px-3 py-2 text-sm font-medium -mb-px border-b-2 border-transparent text-secondary hover:text-gray-900">Bet catalog</Link>
+      </div>
 
       <p className="text-secondary text-sm mb-1">
         Every {isNfl ? 'NFL' : 'NHL'} bet stored for this game — open bets first, then resolved bets, newest first within each group.
