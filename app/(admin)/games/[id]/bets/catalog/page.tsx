@@ -44,7 +44,10 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
     // actually appeared across all recorded games of this sport.
     supabase.from(betsTable).select('game_code, bet_id, trigger_event_type, status, winning_option, option_a, option_b').limit(10000),
     supabase.from(playerBetsTable).select('game_code, bet_id, pick').limit(50000),
-    supabase.from(betsTable).select('trigger_event_type, status').eq('game_code', game.id),
+    supabase.from(betsTable)
+      .select('trigger_event_type, status, multiplier_a, multiplier_b, created_at')
+      .eq('game_code', game.id)
+      .order('created_at', { ascending: false }),
   ]);
   const history = (historyResult.data ?? []) as BetHistoryRow[];
   const playerPicks = (picksResult.data ?? []) as PlayerPickRow[];
@@ -74,6 +77,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Trigger / timing</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Options</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Offered this game</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Latest multiplier</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Historical player picks</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">This game / optional action</th>
             </tr>
@@ -82,6 +86,9 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
             {catalog.map((entry, index) => {
               const rows = history.filter(row => row.trigger_event_type === entry.id);
               const offeredThisGame = currentGameBets.filter(row => row.trigger_event_type === entry.id).length;
+              // The query is newest-first, so this is the actual latest pair
+              // stored when this bet type was offered in the current game.
+              const latest = currentGameBets.find(row => row.trigger_event_type === entry.id);
               const open = openTypes.has(entry.id);
               const matchingPicks = playerPicks.filter(pick => rows.some(row => row.game_code === pick.game_code && row.bet_id === pick.bet_id));
               return (
@@ -93,6 +100,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
                   <td className="px-3 py-2 text-secondary">{entry.trigger}</td>
                   <td className="px-3 py-2 text-secondary">{entry.options}</td>
                   <td className="px-3 py-2 text-right font-mono text-secondary">{offeredThisGame}</td>
+                  <td className="px-3 py-2 font-mono text-secondary">{latest ? `${latest.multiplier_a} / ${latest.multiplier_b}` : '—'}</td>
                   <td className="px-3 py-2 text-secondary">{playerPickResults(rows, matchingPicks)}</td>
                   <td className="px-3 py-2">
                     {open ? <span className="text-xs bg-amber-dim text-amber border border-amber-border px-2 py-0.5 rounded-full font-semibold">Already open</span>
