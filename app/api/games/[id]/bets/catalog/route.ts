@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getAdminSession } from '@/lib/session';
-import { manualCatalogEntry } from '@/lib/betCatalog';
-
-const STATIC_MULTIPLIERS: Record<string, [number, number]> = {
-  scores_next: [1.85, 1.85],
-  td_or_fg: [1.85, 1.85],
-};
 
 // Optional Superadmin tooling. The database RPC performs game/venue
 // authorization, serializes duplicate checks, and records the audit event in
@@ -23,16 +17,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     .eq('id', params.id)
     .maybeSingle();
   if (!game) return NextResponse.json({ error: 'Game not found.' }, { status: 404 });
-  const entry = manualCatalogEntry(game.sport, templateId);
-  if (!entry) return NextResponse.json({ error: 'That catalog bet is not approved for manual opening.' }, { status: 400 });
+  const { data: entry } = await supabase.from('bet_catalog')
+    .select('bet_type, name, trigger_description, pricing, default_window_seconds, manual_openable, active')
+    .eq('sport', game.sport === 'NHL' ? 'NHL' : 'NFL')
+    .eq('bet_type', templateId)
+    .maybeSingle();
+  if (!entry?.active || !entry.manual_openable) return NextResponse.json({ error: 'That catalog bet is not approved for manual opening.' }, { status: 400 });
 
   let optionA = game.home_team ?? 'Home';
   let optionB = game.away_team ?? 'Away';
-  let multiplierA = STATIC_MULTIPLIERS[entry.id]?.[0] ?? 1.85;
-  let multiplierB = STATIC_MULTIPLIERS[entry.id]?.[1] ?? 1.85;
-  let oddsSource = 'ultimate_fan';
-  if (entry.id === 'td_or_fg') { optionA = 'Touchdown'; optionB = 'Field Goal'; }
-  if (entry.id === 'who_wins_game') {
+  const pricing = entry.pricing && typeof entry.pricing === 'object' ? entry.pricing as Record<string, unknown> : {};
+  let multiplierA = Number(pricing.multiplierA) || 1.85;
+  let multiplierB = Number(pricing.multiplierB) || 1.85;
+  let oddsSource = String(pricing.mode ?? 'ultimate_fan_model');
+  if (entry.bet_type === 'td_or_fg') { optionA = 'Touchdown'; optionB = 'Field Goal'; }
+  if (pricing.mode === 'moneyline') {
     const { data: odds } = await supabase.from('admin_config').select('value')
       .eq('key', `gameOdds_${game.id}`).maybeSingle();
     if (typeof odds?.value?.homeMultiplier === 'number' && typeof odds.value.awayMultiplier === 'number') {
@@ -40,6 +39,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       multiplierB = odds.value.awayMultiplier;
       oddsSource = 'balldontlie_moneyline';
     }
+  } else if (pricing.mode === 'model') {
+    const probabilityA = entry.bet_type === 'td_or_fg' ? 0.64 : Number(pricing.yesProbability) || 0.5;
+    multiplierA = Math.max(1.1, Math.min(8, Math.round((0.92 / probabilityA) * 100) / 100));
+    multiplierB = Math.max(1.1, Math.min(8, Math.round((0.92 / (1 - probabilityA)) * 100) / 100));
   }
 
   const betId = `manual_${crypto.randomUUID()}`;
@@ -49,16 +52,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     p_sport: game.sport ?? 'NFL',
     p_bet_id: betId,
     p_question: entry.name,
-    p_flavour: `Opened manually from the Superadmin catalog · ${entry.trigger}`,
+    p_flavour: `Opened manually from the Superadmin catalog · ${entry.trigger_description}`,
     p_option_a: optionA,
     p_option_b: optionB,
     p_multiplier_a: multiplierA,
     p_multiplier_b: multiplierB,
-    p_window_seconds: entry.id === 'who_wins_game' ? 120 : 45,
-    p_trigger_event_type: entry.id,
+    p_window_seconds: entry.default_window_seconds,
+    p_trigger_event_type: entry.bet_type,
     p_trigger_period: String(game.period ?? ''),
     p_trigger_clock: game.clock ?? '',
-    p_event_data: { source: 'superadmin_catalog', templateId: entry.id, oddsSource, openedBy: session.email },
+    p_event_data: { source: 'superadmin_catalog', templateId: entry.bet_type, oddsSource, openedBy: session.email },
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 409 });
   return NextResponse.json({ ok: true, betId, rowId: data, oddsSource });
