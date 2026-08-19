@@ -73,6 +73,7 @@ const TABS = [
   { key: 'raw-snapshots', label: 'Raw Snapshots', suffix: '/raw-snapshots' },
   { key: 'raw-state',     label: 'Raw State',   suffix: '/raw-state'      },
   { key: 'events',        label: 'Game Events', suffix: '/events'         },
+  { key: 'athletes',      label: 'Athletes',    suffix: '/athletes'       },
   { key: 'players',       label: 'Users',       suffix: ''                },
   { key: 'bets',          label: 'Bets',        suffix: '/bets'           },
 ] as const;
