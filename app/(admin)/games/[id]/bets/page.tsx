@@ -6,7 +6,7 @@ import GameHeader, { getEventCounts, getGame, betTables } from '../GameHeader';
 async function getBetStats(gameId: string, sport: string | null) {
   const { bets: betsTable, playerBets: playerBetsTable } = betTables(sport);
 
-  const [{ data: bets }, { data: playerBets }] = await Promise.all([
+  const [{ data: bets }, { data: playerBets }, { data: decisions }] = await Promise.all([
     supabase.from(betsTable)
       // This is intentionally the complete stored row. The table below keeps
       // those direct columns ahead of participation fields derived from the
@@ -17,9 +17,11 @@ async function getBetStats(gameId: string, sport: string | null) {
     supabase.from(playerBetsTable)
       .select('uid, bet_id, pick, amount, status')
       .eq('game_code', gameId),
+    supabase.from('bet_scheduler_decisions').select('*').eq('game_id', gameId).order('created_at', { ascending: false }),
   ]);
 
   const pbByBet: Record<string, typeof playerBets> = {};
+  const decisionByBet = new Map((decisions ?? []).filter((d) => d.bet_id).map((d) => [d.bet_id, d]));
   for (const pb of playerBets ?? []) {
     (pbByBet[pb.bet_id] ??= []).push(pb);
   }
@@ -34,6 +36,7 @@ async function getBetStats(gameId: string, sport: string | null) {
       participants: pbs.length,
       totalWagered: pbs.reduce((s, pb) => s + (pb.amount ?? 0), 0),
       votes,
+      schedulerDecision: decisionByBet.get(b.bet_id) ?? null,
     };
   });
 
@@ -78,7 +81,7 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
           <thead>
             <tr className="border-b border-border bg-gray-50">
               <th colSpan={storedColumnCount} className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">{isNfl ? 'nfl_bets' : 'nhl_bets'} stored columns</th>
-              <th colSpan={3} className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider border-l border-border">Derived from player bets</th>
+              <th colSpan={4} className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider border-l border-border">Derived / scheduler audit</th>
             </tr>
             <tr className="border-b border-border bg-gray-50">
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">{isNfl ? 'trigger_quarter' : 'trigger_period'}</th>
@@ -103,6 +106,7 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider border-l border-border">participants</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">total_wagered</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">picks</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">why selected</th>
             </tr>
           </thead>
           <tbody>
@@ -138,6 +142,7 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
                   ))}
                   {Object.keys(b.votes).length === 0 && <span className="text-muted">—</span>}
                 </td>
+                <td className="px-3 py-2 text-xs text-secondary">{b.schedulerDecision ? <details><summary className="cursor-pointer text-amber hover:underline">{b.schedulerDecision.reason}</summary><pre className="mt-2 max-w-96 whitespace-pre-wrap rounded bg-gray-50 p-2 text-xs">{JSON.stringify(b.schedulerDecision.decision_detail, null, 2)}</pre></details> : '—'}</td>
               </tr>
             ))}
             {stats.length === 0 && (
