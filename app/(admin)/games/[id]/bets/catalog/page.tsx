@@ -6,6 +6,8 @@ import { catalogForSport } from '@/lib/betCatalog';
 import OpenCatalogBetButton from './OpenCatalogBetButton';
 
 type BetHistoryRow = {
+  game_code: string;
+  bet_id: string;
   trigger_event_type: string | null;
   status: string | null;
   winning_option: string | null;
@@ -13,30 +15,39 @@ type BetHistoryRow = {
   option_b: string | null;
 };
 
-function outcomeSplit(rows: BetHistoryRow[]) {
-  let a = 0;
-  let b = 0;
-  for (const row of rows) {
-    if (!row.winning_option || row.status !== 'settled') continue;
-    if (row.winning_option === row.option_a) a++;
-    if (row.winning_option === row.option_b) b++;
+type PlayerPickRow = { game_code: string; bet_id: string; pick: string | null };
+
+function playerPickResults(rows: BetHistoryRow[], picks: PlayerPickRow[]) {
+  const settled = new Map(
+    rows.filter(row => row.status === 'settled' && row.winning_option)
+      .map(row => [`${row.game_code}\u0000${row.bet_id}`, row.winning_option]),
+  );
+  let won = 0;
+  let lost = 0;
+  for (const pick of picks) {
+    const winner = settled.get(`${pick.game_code}\u0000${pick.bet_id}`);
+    if (!winner || !pick.pick) continue;
+    if (pick.pick === winner) won++;
+    else lost++;
   }
-  const total = a + b;
-  return total === 0 ? '—' : `A ${Math.round((a / total) * 100)}% · B ${Math.round((b / total) * 100)}%`;
+  const total = won + lost;
+  return total === 0 ? '—' : `${won} won · ${lost} lost · ${Math.round((won / total) * 100)}% won`;
 }
 
 export default async function BetCatalogPage({ params }: { params: { id: string } }) {
   const game = await getGame(params.id);
   if (!game) notFound();
-  const { bets: betsTable } = betTables(game.sport);
-  const [counts, historyResult, currentResult] = await Promise.all([
+  const { bets: betsTable, playerBets: playerBetsTable } = betTables(game.sport);
+  const [counts, historyResult, picksResult, currentResult] = await Promise.all([
     getEventCounts(game.id),
     // History is sport-wide: it answers how often each supported bet has
     // actually appeared across all recorded games of this sport.
-    supabase.from(betsTable).select('trigger_event_type, status, winning_option, option_a, option_b').limit(10000),
+    supabase.from(betsTable).select('game_code, bet_id, trigger_event_type, status, winning_option, option_a, option_b').limit(10000),
+    supabase.from(playerBetsTable).select('game_code, bet_id, pick').limit(50000),
     supabase.from(betsTable).select('trigger_event_type').eq('game_code', game.id).eq('status', 'open'),
   ]);
   const history = (historyResult.data ?? []) as BetHistoryRow[];
+  const playerPicks = (picksResult.data ?? []) as PlayerPickRow[];
   const openTypes = new Set((currentResult.data ?? []).map(row => row.trigger_event_type));
   const catalog = catalogForSport(game.sport);
 
@@ -51,7 +62,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
         Every bet type the automatic game flow can create for {game.sport ?? 'NFL'}.
       </p>
       <p className="text-muted text-xs mb-3">
-        Times opened and winner split are calculated from all stored <span className="font-mono">{betsTable}</span> rows for this sport.
+        Times opened come from <span className="font-mono">{betsTable}</span>; player pick results compare the matching player-bet rows with each settled winner.
         {' '}The game continues to run normally without anyone using it; opening a catalog bet is an optional Superadmin action.
       </p>
       <div className="card p-0 overflow-x-auto">
@@ -64,7 +75,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Times opened</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Settled</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Voided</th>
-              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Historical winner split</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Historical player picks</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">This game / optional action</th>
             </tr>
           </thead>
@@ -74,6 +85,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
               const settled = rows.filter(row => row.status === 'settled').length;
               const voided = rows.filter(row => row.status === 'void').length;
               const open = openTypes.has(entry.id);
+              const matchingPicks = playerPicks.filter(pick => rows.some(row => row.game_code === pick.game_code && row.bet_id === pick.bet_id));
               return (
                 <tr key={entry.id} className={`border-b border-border last:border-0 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                   <td className="px-3 py-2 text-gray-900">
@@ -85,7 +97,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
                   <td className="px-3 py-2 text-right font-mono text-secondary">{rows.length}</td>
                   <td className="px-3 py-2 text-right font-mono text-secondary">{settled}</td>
                   <td className="px-3 py-2 text-right font-mono text-secondary">{voided}</td>
-                  <td className="px-3 py-2 text-secondary">{outcomeSplit(rows)}</td>
+                  <td className="px-3 py-2 text-secondary">{playerPickResults(rows, matchingPicks)}</td>
                   <td className="px-3 py-2">
                     {open ? <span className="text-xs bg-amber-dim text-amber border border-amber-border px-2 py-0.5 rounded-full font-semibold">Already open</span>
                       : entry.manualOpenable && game.status === 'live' ? <OpenCatalogBetButton gameId={game.id} templateId={entry.id} />
