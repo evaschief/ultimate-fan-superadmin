@@ -6,16 +6,14 @@ export interface ScoringConfig {
 }
 
 export interface HockeyScoring {
+  goal: number;
+  assist: number;
   shotOnGoal: number;
   hit: number;
   block: number;
-  assist: number;
-  goalEvenStrength: number;
-  goalPowerPlay: number;
-  goalShorthanded: number;
   hatTrickBonus: number;
   iceTimePer5Min: number;
-  penaltyPerMinute: number;
+  penaltyPerMin: number;
   giveaway: number;
 }
 
@@ -28,14 +26,22 @@ export interface FootballScoring {
   passingTD: number;
   rushingTD: number;
   receivingTD: number;
-  fieldGoalMade: number;
-  fieldGoal4049Bonus: number;
-  fieldGoal50PlusBonus: number;
+  fieldGoal: number;
+  fieldGoal40: number;
+  fieldGoal50: number;
   extraPoint: number;
-  interceptionThrown: number;
+  interception: number;
   fumbleLost: number;
   qbSacked: number;
-  missedFieldGoal: number;
+  returnTD: number;
+  defensiveTD: number;
+  twoPointConversion: number;
+  safety: number;
+  tackle: number;
+  tackleAssisted: number;
+  milestone100Rush: number;
+  milestone300Pass: number;
+  milestone100Rec: number;
 }
 
 export interface BetMultipliers {

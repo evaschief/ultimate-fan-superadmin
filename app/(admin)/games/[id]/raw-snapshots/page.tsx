@@ -6,6 +6,7 @@ import {
   CaptureEmpty, ClaimedPill, SourcePill, TD, TH, TH_GROUP, fmtTime, getCaptureStart,
 } from '../rawCapture';
 import FantasyScoringTable from './FantasyScoringTable';
+import { getCurrentScoringConfig } from '@/lib/scoringConfig';
 
 // raw_stat_snapshots — one row per stored, hash-distinct provider stats payload.
 // This is intentionally a direct table view: every displayed field is either a
@@ -156,10 +157,11 @@ export default async function RawSnapshotsPage({
   const game = await getGame(params.id);
   if (!game) notFound();
 
-  const [counts, snapshots, captureStart] = await Promise.all([
+  const [counts, snapshots, captureStart, scoringConfig] = await Promise.all([
     getEventCounts(game.id),
     getSnapshots(game.id),
     getCaptureStart(),
+    getCurrentScoringConfig(),
   ]);
 
   const tiedTimes = snapshots.length > 1 && new Set(snapshots.map(row => row.fetched_at)).size <= 1;
@@ -270,7 +272,7 @@ export default async function RawSnapshotsPage({
               </pre>
             </details>
           </div>
-          <FantasyScoringTable sport={game.sport} />
+          <FantasyScoringTable sport={game.sport} config={scoringConfig} />
         </div>
       ) : (
         <div className="card p-0 overflow-x-auto">

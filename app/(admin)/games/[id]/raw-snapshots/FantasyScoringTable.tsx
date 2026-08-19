@@ -1,63 +1,8 @@
+import { ScoringConfig } from '@/types';
+
 type Rule = { label: string; points: string };
-
-const NFL_RULES: Array<{ heading: string; rules: Rule[] }> = [
-  {
-    heading: 'Offense',
-    rules: [
-      { label: 'First appearance in game', points: '+18' },
-      { label: 'Passing yards', points: '+12 / 10 yards' },
-      { label: 'Rushing yards', points: '+12 / 4 yards' },
-      { label: 'Receiving yards', points: '+12 / 4 yards' },
-      { label: 'Reception', points: '+9' },
-      { label: 'Passing touchdown', points: '+70' },
-      { label: 'Rushing touchdown', points: '+105' },
-      { label: 'Receiving touchdown', points: '+105' },
-      { label: 'Field goal under 40 yards', points: '+52' },
-      { label: 'Field goal, 40–49 yards', points: '+70' },
-      { label: 'Field goal, 50+ yards', points: '+88' },
-      { label: 'Extra point', points: '+6' },
-      { label: 'Two-point conversion', points: '+35' },
-    ],
-  },
-  {
-    heading: 'Defence and returns',
-    rules: [
-      { label: 'Solo tackle', points: '+7' },
-      { label: 'Assisted tackle', points: '+4' },
-      { label: 'Return touchdown', points: '+175' },
-      { label: 'Defensive touchdown', points: '+175' },
-      { label: 'Safety', points: '+70' },
-    ],
-  },
-  {
-    heading: 'Penalties and bonuses',
-    rules: [
-      { label: 'Quarterback sacked', points: '−4' },
-      { label: 'Interception thrown', points: '−40' },
-      { label: 'Fumble lost', points: '−40' },
-      { label: '100 rushing yards', points: '+53' },
-      { label: '300 passing yards', points: '+53' },
-      { label: '100 receiving yards', points: '+53' },
-    ],
-  },
-];
-
-const NHL_RULES: Array<{ heading: string; rules: Rule[] }> = [
-  {
-    heading: 'Skater scoring',
-    rules: [
-      { label: 'Goal', points: '+250' },
-      { label: 'Assist', points: '+125' },
-      { label: 'Shot on goal', points: '+50' },
-      { label: 'Hit', points: '+25' },
-      { label: 'Block / blocked shot', points: '+25' },
-      { label: 'Giveaway', points: '−25' },
-      { label: 'Penalty minute', points: '−25 / minute' },
-      { label: 'Hat trick bonus', points: '+100' },
-      { label: 'Ice time', points: '+35 / 5 minutes' },
-    ],
-  },
-];
+type RuleGroup = { heading: string; rules: Rule[] };
+const signed = (value: number) => value >= 0 ? `+${value}` : `−${Math.abs(value)}`;
 
 /**
  * A labelled reference for the score awarded by the live process-event
@@ -65,16 +10,77 @@ const NHL_RULES: Array<{ heading: string; rules: Rule[] }> = [
  * provider payload contains game statistics, while these are Ultimate Fan's
  * rules for turning those statistics into fantasy points.
  */
-export default function FantasyScoringTable({ sport }: { sport: string | null }) {
+export default function FantasyScoringTable({
+  sport,
+  config,
+}: {
+  sport: string | null;
+  config: ScoringConfig;
+}) {
   const isNhl = sport === 'NHL';
-  const groups = isNhl ? NHL_RULES : NFL_RULES;
+  const groups: RuleGroup[] = isNhl ? [
+    {
+      heading: 'Skater scoring',
+      rules: [
+        { label: 'Goal', points: signed(config.hockey.goal) },
+        { label: 'Assist', points: signed(config.hockey.assist) },
+        { label: 'Shot on goal', points: signed(config.hockey.shotOnGoal) },
+        { label: 'Hit', points: signed(config.hockey.hit) },
+        { label: 'Block / blocked shot', points: signed(config.hockey.block) },
+        { label: 'Giveaway', points: signed(config.hockey.giveaway) },
+        { label: 'Penalty minute', points: `${signed(config.hockey.penaltyPerMin)} / minute` },
+        { label: 'Hat trick bonus', points: signed(config.hockey.hatTrickBonus) },
+        { label: 'Ice time', points: `${signed(config.hockey.iceTimePer5Min)} / 5 minutes` },
+      ],
+    },
+  ] : [
+    {
+      heading: 'Offense',
+      rules: [
+        { label: 'First appearance in game', points: signed(config.football.gameParticipation) },
+        { label: 'Passing yards', points: `${signed(config.football.passingYardsPer10)} / 10 yards` },
+        { label: 'Rushing yards', points: `${signed(config.football.rushingYardsPer4)} / 4 yards` },
+        { label: 'Receiving yards', points: `${signed(config.football.receivingYardsPer4)} / 4 yards` },
+        { label: 'Reception', points: signed(config.football.reception) },
+        { label: 'Passing touchdown', points: signed(config.football.passingTD) },
+        { label: 'Rushing touchdown', points: signed(config.football.rushingTD) },
+        { label: 'Receiving touchdown', points: signed(config.football.receivingTD) },
+        { label: 'Field goal under 40 yards', points: signed(config.football.fieldGoal) },
+        { label: 'Field goal, 40–49 yards', points: signed(config.football.fieldGoal40) },
+        { label: 'Field goal, 50+ yards', points: signed(config.football.fieldGoal50) },
+        { label: 'Extra point', points: signed(config.football.extraPoint) },
+        { label: 'Two-point conversion', points: signed(config.football.twoPointConversion) },
+      ],
+    },
+    {
+      heading: 'Defence and returns',
+      rules: [
+        { label: 'Solo tackle', points: signed(config.football.tackle) },
+        { label: 'Assisted tackle', points: signed(config.football.tackleAssisted) },
+        { label: 'Return touchdown', points: signed(config.football.returnTD) },
+        { label: 'Defensive touchdown', points: signed(config.football.defensiveTD) },
+        { label: 'Safety', points: signed(config.football.safety) },
+      ],
+    },
+    {
+      heading: 'Penalties and bonuses',
+      rules: [
+        { label: 'Quarterback sacked', points: signed(config.football.qbSacked) },
+        { label: 'Interception thrown', points: signed(config.football.interception) },
+        { label: 'Fumble lost', points: signed(config.football.fumbleLost) },
+        { label: '100 rushing yards', points: signed(config.football.milestone100Rush) },
+        { label: '300 passing yards', points: signed(config.football.milestone300Pass) },
+        { label: '100 receiving yards', points: signed(config.football.milestone100Rec) },
+      ],
+    },
+  ];
 
   return (
     <aside className="card p-0 overflow-hidden">
       <div className="px-4 py-3 border-b border-border">
         <h2 className="text-sm font-semibold text-gray-900">Current fantasy scoring</h2>
         <p className="text-xs text-secondary mt-0.5">
-          {isNhl ? 'NHL' : 'NFL'} values applied when game events are scored.
+          {isNhl ? 'NHL' : 'NFL'} values from the live scoring configuration.
         </p>
       </div>
       <div className="divide-y divide-border">
