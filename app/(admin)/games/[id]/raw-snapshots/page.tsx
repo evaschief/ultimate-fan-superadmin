@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import GameHeader, { getEventCounts, getGame } from '../GameHeader';
 import {
@@ -32,6 +33,12 @@ interface DisplayRow {
   snapshot: SnapshotRow;
   activity: PayloadChange | null;
   showSnapshot: boolean;
+}
+
+interface PayloadPlayerRow {
+  team: string;
+  player: string;
+  stats: Array<{ name: string; value: string }>;
 }
 
 async function getSnapshots(gameId: string): Promise<SnapshotRow[]> {
@@ -87,6 +94,23 @@ function formatStatName(name: string): string {
   return name.replaceAll('_', ' ');
 }
 
+function latestPayloadPlayers(payload: unknown): PayloadPlayerRow[] {
+  if (!Array.isArray(payload)) return [];
+  return payload
+    .filter((value): value is Record<string, unknown> => !!value && typeof value === 'object')
+    .map(entry => {
+      const { team, player } = playerIdentity(entry);
+      const stats = Object.entries(entry)
+        .filter(([name]) => !IDENTITY_KEYS.has(name))
+        .map(([name, value]) => ({
+          name: formatStatName(name),
+          value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+        }));
+      return { team, player, stats };
+    })
+    .sort((a, b) => a.team.localeCompare(b.team) || a.player.localeCompare(b.player));
+}
+
 function payloadChanges(current: unknown, previous: unknown): PayloadChange[] {
   const before = flattenPayload(previous);
   const after = flattenPayload(current);
@@ -121,7 +145,13 @@ function statTotal(payload: unknown): number {
   return total;
 }
 
-export default async function RawSnapshotsPage({ params }: { params: { id: string } }) {
+export default async function RawSnapshotsPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams?: { view?: string };
+}) {
   const game = await getGame(params.id);
   if (!game) notFound();
 
@@ -150,21 +180,46 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
       displayRows.push({ snapshot: row, activity, showSnapshot: index === 0 });
     });
   }
+  const view = searchParams?.view === 'totals' ? 'totals' : 'changes';
+  const latestSnapshot = rows[0]?.row ?? null;
+  const latestPlayers = latestPayloadPlayers(latestSnapshot?.payload);
 
   return (
     <div className="p-5 pb-10">
       <GameHeader game={game} active="raw-snapshots" counts={counts} />
 
+      <div className="flex items-center gap-1 border-b border-border mb-4">
+        <Link
+          href={`/games/${game.id}/raw-snapshots`}
+          className={`px-3 py-2 text-sm font-medium -mb-px border-b-2 ${view === 'changes' ? 'border-amber text-amber' : 'border-transparent text-secondary hover:text-gray-900'}`}
+        >
+          Changes
+        </Link>
+        <Link
+          href={`/games/${game.id}/raw-snapshots?view=totals`}
+          className={`px-3 py-2 text-sm font-medium -mb-px border-b-2 ${view === 'totals' ? 'border-amber text-amber' : 'border-transparent text-secondary hover:text-gray-900'}`}
+        >
+          Latest payload totals
+        </Link>
+      </div>
+
       <p className="text-secondary text-sm mb-1">
-        Stored provider stat snapshots — <span className="font-mono">raw_stat_snapshots</span>,
-        newest first. Each row contains one full, hash-distinct player-stats payload.
+        {view === 'changes' ? (
+          <>Stat changes between consecutive stored provider payloads — <span className="font-mono">raw_stat_snapshots</span>, newest first.</>
+        ) : (
+          <>Every player stat in the latest stored provider payload — no Ultimate Fan fantasy scoring is applied here.</>
+        )}
       </p>
       <p className="text-muted text-xs mb-3">
         {snapshots.length > 0 ? (
           <>
             <span className="text-gray-900 font-semibold">{snapshots.length} stored snapshots</span>
-            {' '}— Team, Player and Event are read only from each row&apos;s stored <span className="font-mono">payload</span>;
-            {' '}expand it to inspect the exact player-stat array.
+            {view === 'changes' ? (
+              <>{' '}— Team, Player and Event are read only from each row&apos;s stored <span className="font-mono">payload</span>;
+              {' '}expand it to inspect the exact player-stat array.</>
+            ) : (
+              <>{' '}— expand the payload below to inspect the exact stored player-stat array.</>
+            )}
           </>
         ) : (
           <>Nothing captured for this game.</>
@@ -177,6 +232,42 @@ export default async function RawSnapshotsPage({ params }: { params: { id: strin
           gameTime={game.scheduled_at ?? game.created_at}
           captureStart={captureStart}
         />
+      ) : view === 'totals' && latestSnapshot ? (
+        <div className="card p-0 overflow-x-auto">
+          <div className="px-4 py-3 border-b border-border text-xs text-secondary">
+            Stored row: <span className="font-mono text-gray-900">{latestSnapshot.id}</span>
+            {' '}· fetched <span className="font-mono text-gray-900">{fmtTime(latestSnapshot.fetched_at)}</span>
+            {' '}· <SourcePill source={latestSnapshot.source} />
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-gray-50">
+                <th className={TH}>team</th>
+                <th className={TH}>player</th>
+                <th className={TH}>provider stat totals from payload</th>
+              </tr>
+            </thead>
+            <tbody>
+              {latestPlayers.map((player, i) => (
+                <tr key={`${player.team}-${player.player}-${i}`} className={`border-b border-border last:border-0 align-top ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                  <td className={TD}>{player.team}</td>
+                  <td className={TD}>{player.player}</td>
+                  <td className={TD}>
+                    {player.stats.length
+                      ? player.stats.map(stat => `${stat.name}: ${stat.value}`).join(' · ')
+                      : <span className="text-muted">—</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <details className="px-4 py-3 border-t border-border">
+            <summary className="cursor-pointer text-xs text-secondary hover:text-amber font-mono">view exact payload</summary>
+            <pre className="mt-2 bg-white border border-border rounded-md p-2 text-xs font-mono text-gray-900 whitespace-pre-wrap break-words max-h-80 overflow-y-auto">
+{JSON.stringify(latestSnapshot.payload, null, 2)}
+            </pre>
+          </details>
+        </div>
       ) : (
         <div className="card p-0 overflow-x-auto">
           <table className="w-full text-sm">
