@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import GameHeader, { betTables, getEventCounts, getGame } from '../../GameHeader';
-import { catalogForSport } from '@/lib/betCatalog';
+import { catalogForSport, defaultMultiplierFor } from '@/lib/betCatalog';
 import OpenCatalogBetButton from './OpenCatalogBetButton';
 
 type BetHistoryRow = {
@@ -67,7 +67,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
       </p>
       <p className="text-muted text-xs mb-3">
         Offered this game counts this game&apos;s stored rows. Historical player pick results compare player-bet picks with each settled winner across all recorded games.
-        {' '}The game continues to run normally without anyone using it; opening a catalog bet is an optional Superadmin action.
+        {' '}If a type has not been offered, its multiplier is labelled Default: that is the opening rule, not a stored bet. The game continues to run normally without anyone using it; opening a catalog bet is an optional Superadmin action.
       </p>
       <div className="card p-0 overflow-x-auto">
         <table className="w-full text-sm">
@@ -77,7 +77,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Trigger / timing</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Options</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Offered this game</th>
-              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Latest multiplier</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Latest / default multiplier</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Historical player picks</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">This game / optional action</th>
             </tr>
@@ -100,7 +100,9 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
                   <td className="px-3 py-2 text-secondary">{entry.trigger}</td>
                   <td className="px-3 py-2 text-secondary">{entry.options}</td>
                   <td className="px-3 py-2 text-right font-mono text-secondary">{offeredThisGame}</td>
-                  <td className="px-3 py-2 font-mono text-secondary">{latest ? `${latest.multiplier_a} / ${latest.multiplier_b}` : '—'}</td>
+                  <td className="px-3 py-2 font-mono text-secondary">
+                    {latest ? `${latest.multiplier_a} / ${latest.multiplier_b}` : <><span className="text-muted text-xs">Default </span>{defaultMultiplierFor(entry)}</>}
+                  </td>
                   <td className="px-3 py-2 text-secondary">{playerPickResults(rows, matchingPicks)}</td>
                   <td className="px-3 py-2">
                     {open ? <span className="text-xs bg-amber-dim text-amber border border-amber-border px-2 py-0.5 rounded-full font-semibold">Already open</span>

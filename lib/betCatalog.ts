@@ -72,3 +72,56 @@ export function catalogForSport(sport: string | null) {
 export function manualCatalogEntry(sport: string | null, id: string) {
   return catalogForSport(sport).find(entry => entry.id === id && entry.manualOpenable);
 }
+
+/**
+ * A transparent starting price for catalog rows that have not been offered in
+ * this game. This is deliberately a display default, not a stored bet: when
+ * the live flow opens a bet, process-event applies the current game state (or
+ * BDL's moneyline for Game Winner) and persists the resulting pair instead.
+ */
+export function defaultMultiplierFor(entry: BetCatalogEntry): string {
+  if (entry.id === 'who_wins_game') return 'BDL live / 1.85 fallback';
+
+  const fixed: Record<string, string> = {
+    power_play: '2.00 / 1.55',
+    q2_turnover: '2.60 / 1.45',
+    will_drive_td: '2.20 / 1.65',
+    red_zone_offense: '1.70 / 2.50',
+    drive_ends_turnover: '3.20 / 1.35',
+    hail_mary_attempt: '3.50 / 1.15',
+    hail_mary_td: '3.50 / 1.15',
+    will_trailing_team_tie: '2.20 / 1.85',
+    hail_mary: '2.20 / 1.85',
+    ot_winner: '2.80 / 2.80',
+  };
+  if (fixed[entry.id]) return fixed[entry.id];
+
+  const yesProbability: Record<string, number> = {
+    will_go_ot: 0.17,
+    will_defensive_td: 0.10,
+    td_in_q1: 0.68,
+    will_drive_score: 0.38,
+    drive_reaches_redzone: 0.29,
+    first_down_conv: 0.62,
+    milestone_100_rush_yards: 0.34,
+    milestone_100_rec_yards: 0.34,
+    milestone_300_pass_yards: 0.27,
+    multi_touchdown_scorer: 0.19,
+    goal_in_1st: 0.78,
+    goes_to_shootout: 0.08,
+    will_penalty_shot_score: 0.31,
+    will_delayed_penalty_goal: 0.12,
+  };
+  const decimal = (probability: number) => Math.max(1.1, Math.min(8, Math.round((0.92 / probability) * 100) / 100)).toFixed(2);
+
+  if (entry.options === 'TD / FG') return '1.44 / 2.56';
+  if (entry.options === 'GOAL / SAVE') return '2.97 / 1.33';
+  if (entry.options === 'Home / away' || entry.options === 'QB / QB') return '1.77 / 1.92';
+  if (entry.options === 'YES / NO' && yesProbability[entry.id] != null) {
+    const yes = yesProbability[entry.id];
+    return `${decimal(yes)} / ${decimal(1 - yes)}`;
+  }
+  // The v1 model treats remaining even choices as genuinely even until a
+  // live state gives it a reason to move them.
+  return '1.84 / 1.84';
+}
