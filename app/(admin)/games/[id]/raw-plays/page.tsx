@@ -96,24 +96,23 @@ export default async function RawPlaysPage({ params }: { params: { id: string } 
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-gray-50">
-                <th colSpan={2} className={TH_GROUP}>Identity</th>
-                <th colSpan={3} className={`${TH_GROUP} border-l border-border`}>Capture</th>
-                <th colSpan={6} className={`${TH_GROUP} border-l border-border`}>Play</th>
-                <th className={`${TH_GROUP} border-l border-border`}>Raw</th>
+                <th colSpan={7} className={TH_GROUP}>raw_plays stored columns</th>
+                <th colSpan={6} className={`${TH_GROUP} border-l border-border`}>Read from payload for display</th>
               </tr>
               <tr className="border-b border-border bg-gray-50">
+                <th className={TH}>game_id</th>
                 <th className={TH}>bdl_play_id</th>
                 <th className={TH}>id</th>
                 <th className={TH}>fetched_at</th>
-                <th className={TH}>claimed</th>
+                <th className={TH}>claimed_at</th>
                 <th className={TH}>source</th>
+                <th className={TH}>payload</th>
                 <th className={TH}>period</th>
                 <th className={TH}>clock</th>
                 <th className={TH}>team</th>
                 <th className={TH}>type</th>
                 <th className={TH}>text</th>
                 <th className={TH}>score</th>
-                <th className={TH}>payload</th>
               </tr>
             </thead>
             <tbody>
@@ -124,11 +123,22 @@ export default async function RawPlaysPage({ params }: { params: { id: string } 
                     key={row.id}
                     className={`border-b border-border last:border-0 align-top ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                   >
+                    <td className={`${TD} text-muted`}>{game.id.slice(0, 8)}</td>
                     <td className={TD}>{row.bdl_play_id ?? '—'}</td>
                     <td className={`${TD} text-muted`}>{row.id.slice(0, 8)}</td>
                     <td className={`${TD} text-muted`}>{fmtTime(row.fetched_at)}</td>
                     <td className="px-3 py-2"><ClaimedPill claimedAt={row.claimed_at} /></td>
                     <td className="px-3 py-2"><SourcePill source={row.source} /></td>
+                    <td className="px-3 py-2">
+                      <details>
+                        <summary className="cursor-pointer text-xs text-secondary hover:text-amber font-mono">
+                          view
+                        </summary>
+                        <pre className="mt-2 bg-white border border-border rounded-md p-2 text-xs font-mono text-gray-900 whitespace-pre-wrap break-words max-h-80 overflow-y-auto w-[min(58rem,80vw)]">
+{JSON.stringify(row.payload, null, 2)}
+                        </pre>
+                      </details>
+                    </td>
                     <td className={TD}>{v.period ?? '—'}</td>
                     <td className={TD}>{v.clock ?? '—'}</td>
                     <td className={TD}>{v.team ?? <span className="text-muted">—</span>}</td>
@@ -142,16 +152,6 @@ export default async function RawPlaysPage({ params }: { params: { id: string } 
                     </td>
                     <td className={`${TD} text-secondary`}>
                       {v.awayScore ?? '—'} – {v.homeScore ?? '—'}
-                    </td>
-                    <td className="px-3 py-2">
-                      <details>
-                        <summary className="cursor-pointer text-xs text-secondary hover:text-amber font-mono">
-                          view
-                        </summary>
-                        <pre className="mt-2 bg-white border border-border rounded-md p-2 text-xs font-mono text-gray-900 whitespace-pre-wrap break-words max-h-80 overflow-y-auto w-[min(58rem,80vw)]">
-{JSON.stringify(row.payload, null, 2)}
-                        </pre>
-                      </details>
                     </td>
                   </tr>
                 );
