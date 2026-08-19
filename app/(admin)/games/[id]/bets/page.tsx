@@ -81,6 +81,8 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
               <th colSpan={3} className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider border-l border-border">Derived from player bets</th>
             </tr>
             <tr className="border-b border-border bg-gray-50">
+              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">{isNfl ? 'trigger_quarter' : 'trigger_period'}</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">trigger_clock</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">id</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">game_id</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">game_code</th>
@@ -96,8 +98,6 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">winning_option</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">trigger_type</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">trigger_event_type</th>
-              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">{isNfl ? 'trigger_quarter' : 'trigger_period'}</th>
-              <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">trigger_clock</th>
               {isNfl && <><th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">trigger_down</th><th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">yards_to_go</th></>}
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">created_at</th>
               <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider border-l border-border">participants</th>
@@ -108,6 +108,8 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
           <tbody>
             {stats.map((b, i) => (
               <tr key={b.betId} className={`border-b border-border last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                <td className="px-3 py-2 text-secondary">{isNfl ? (b.trigger_quarter ?? '—') : (b.trigger_period ?? '—')}</td>
+                <td className="px-3 py-2 font-mono text-secondary">{b.trigger_clock ?? '—'}</td>
                 <td className="px-3 py-2 font-mono text-xs text-secondary" title={b.id}>{b.id?.slice(0, 8) ?? '—'}</td>
                 <td className="px-3 py-2 font-mono text-xs text-secondary" title={b.game_id}>{b.game_id?.slice(0, 8) ?? '—'}</td>
                 <td className="px-3 py-2 font-mono text-xs text-secondary" title={b.game_code}>{b.game_code?.slice(0, 8) ?? '—'}</td>
@@ -123,8 +125,6 @@ export default async function GameBetsPage({ params }: { params: { id: string } 
                 <td className="px-3 py-2 text-secondary">{b.winning_option ?? '—'}</td>
                 <td className="px-3 py-2 text-secondary">{b.trigger_type ?? '—'}</td>
                 <td className="px-3 py-2 text-secondary">{b.trigger_event_type ?? '—'}</td>
-                <td className="px-3 py-2 text-secondary">{isNfl ? (b.trigger_quarter ?? '—') : (b.trigger_period ?? '—')}</td>
-                <td className="px-3 py-2 font-mono text-secondary">{b.trigger_clock ?? '—'}</td>
                 {isNfl && <><td className="px-3 py-2 text-secondary">{b.trigger_down ?? '—'}</td><td className="px-3 py-2 text-secondary">{b.yards_to_go ?? '—'}</td></>}
                 <td className="px-3 py-2 font-mono text-xs text-secondary whitespace-nowrap">{new Date(b.created_at).toLocaleString()}</td>
                 <td className="px-3 py-2 text-right text-secondary border-l border-border">{b.participants}</td>
