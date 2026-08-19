@@ -44,11 +44,12 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
     // actually appeared across all recorded games of this sport.
     supabase.from(betsTable).select('game_code, bet_id, trigger_event_type, status, winning_option, option_a, option_b').limit(10000),
     supabase.from(playerBetsTable).select('game_code, bet_id, pick').limit(50000),
-    supabase.from(betsTable).select('trigger_event_type').eq('game_code', game.id).eq('status', 'open'),
+    supabase.from(betsTable).select('trigger_event_type, status').eq('game_code', game.id),
   ]);
   const history = (historyResult.data ?? []) as BetHistoryRow[];
   const playerPicks = (picksResult.data ?? []) as PlayerPickRow[];
-  const openTypes = new Set((currentResult.data ?? []).map(row => row.trigger_event_type));
+  const currentGameBets = currentResult.data ?? [];
+  const openTypes = new Set(currentGameBets.filter(row => row.status === 'open').map(row => row.trigger_event_type));
   const catalog = catalogForSport(game.sport);
 
   return (
@@ -62,7 +63,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
         Every bet type the automatic game flow can create for {game.sport ?? 'NFL'}.
       </p>
       <p className="text-muted text-xs mb-3">
-        Times opened come from <span className="font-mono">{betsTable}</span>; player pick results compare the matching player-bet rows with each settled winner.
+        Offered this game counts this game&apos;s stored rows. Historical player pick results compare player-bet picks with each settled winner across all recorded games.
         {' '}The game continues to run normally without anyone using it; opening a catalog bet is an optional Superadmin action.
       </p>
       <div className="card p-0 overflow-x-auto">
@@ -72,9 +73,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Bet</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Trigger / timing</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Options</th>
-              <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Times opened</th>
-              <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Settled</th>
-              <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Voided</th>
+              <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Offered this game</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Historical player picks</th>
               <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">This game / optional action</th>
             </tr>
@@ -82,8 +81,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
           <tbody>
             {catalog.map((entry, index) => {
               const rows = history.filter(row => row.trigger_event_type === entry.id);
-              const settled = rows.filter(row => row.status === 'settled').length;
-              const voided = rows.filter(row => row.status === 'void').length;
+              const offeredThisGame = currentGameBets.filter(row => row.trigger_event_type === entry.id).length;
               const open = openTypes.has(entry.id);
               const matchingPicks = playerPicks.filter(pick => rows.some(row => row.game_code === pick.game_code && row.bet_id === pick.bet_id));
               return (
@@ -94,9 +92,7 @@ export default async function BetCatalogPage({ params }: { params: { id: string 
                   </td>
                   <td className="px-3 py-2 text-secondary">{entry.trigger}</td>
                   <td className="px-3 py-2 text-secondary">{entry.options}</td>
-                  <td className="px-3 py-2 text-right font-mono text-secondary">{rows.length}</td>
-                  <td className="px-3 py-2 text-right font-mono text-secondary">{settled}</td>
-                  <td className="px-3 py-2 text-right font-mono text-secondary">{voided}</td>
+                  <td className="px-3 py-2 text-right font-mono text-secondary">{offeredThisGame}</td>
                   <td className="px-3 py-2 text-secondary">{playerPickResults(rows, matchingPicks)}</td>
                   <td className="px-3 py-2">
                     {open ? <span className="text-xs bg-amber-dim text-amber border border-amber-border px-2 py-0.5 rounded-full font-semibold">Already open</span>
