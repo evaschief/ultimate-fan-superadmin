@@ -63,7 +63,23 @@ export default async function GameAthletesPage({ params, searchParams }: { param
     .sort((a, b) => a.credit.athlete_name.split('.').slice(-1)[0].localeCompare(b.credit.athlete_name.split('.').slice(-1)[0]) || a.credit.athlete_name.localeCompare(b.credit.athlete_name));
   const hasBackfill = credits.some((credit) => credit.source === 'backfill');
   const roster = (rosterResult.data?.roster ?? {}) as { teams?: Record<string, { roster?: Array<Record<string, unknown>> }> };
-  const rosterPlayers = Object.values(roster.teams ?? {}).flatMap((team) => team.roster ?? []);
+  const positionOrder = game.sport === 'NHL'
+    ? ['C', 'LW', 'RW', 'D', 'G']
+    : ['QB', 'RB', 'WR', 'TE', 'K'];
+  const teamOrder = [game.home_team, game.away_team];
+  const rosterPlayers = Object.values(roster.teams ?? {})
+    .flatMap((team) => team.roster ?? [])
+    .sort((a, b) => {
+      const teamA = teamOrder.indexOf(String(a.team));
+      const teamB = teamOrder.indexOf(String(b.team));
+      const teamDiff = (teamA < 0 ? 99 : teamA) - (teamB < 0 ? 99 : teamB);
+      if (teamDiff !== 0) return teamDiff;
+      const positionA = positionOrder.indexOf(String(a.positionCode));
+      const positionB = positionOrder.indexOf(String(b.positionCode));
+      const positionDiff = (positionA < 0 ? 99 : positionA) - (positionB < 0 ? 99 : positionB);
+      if (positionDiff !== 0) return positionDiff;
+      return Number(b.salary ?? 0) - Number(a.salary ?? 0);
+    });
   const rosterColumns = Array.from(new Set(rosterPlayers.flatMap((player) => Object.keys(player))));
   const view = searchParams?.view === 'players' || searchParams?.view === 'roster' ? searchParams.view : 'feed';
   const rosterValue = (value: unknown) => {
