@@ -44,7 +44,7 @@ export default async function GlobalBetCatalogPage({ searchParams = {} }: { sear
       {['Status','Bet','Description','Trigger','Trigger rule','Type','Player bet','Avg plays to resolve','Rating','Options','Pricing rule','Window (sec)'].map(header => <th key={header} className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">{header}</th>)}
     </tr></thead><tbody>{catalog.map((row, index) => <tr key={row.id} className={`border-b border-border last:border-0 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
       <td className="px-3 py-2 text-secondary">{row.implementation_status}</td>
-      <td className="px-3 py-2 text-gray-900 min-w-44"><div>{row.bet_name}</div><div className="font-mono text-xs text-muted mt-0.5">{row.bet_id}</div></td>
+      <td className="px-3 py-2 text-gray-900 min-w-44"><Link href={`/bet-catalog/${row.id}`} className="hover:text-amber hover:underline"><div>{row.bet_name}</div><div className="font-mono text-xs text-muted mt-0.5">{row.bet_id}</div></Link><Link href={`/bet-catalog/${row.id}`} className="text-xs text-amber hover:underline">Edit</Link></td>
       <td className="px-3 py-2 text-secondary min-w-72">{row.description ?? '—'}</td>
       <td className="px-3 py-2 text-secondary min-w-48">{row.trigger_context ?? row.trigger_description}</td>
       <td className="px-3 py-2 text-secondary"><details><summary className="cursor-pointer text-xs text-amber whitespace-nowrap">View JSON</summary><pre className="mt-2 p-2 bg-gray-50 border border-border rounded text-xs font-mono whitespace-pre-wrap min-w-80">{JSON.stringify(row.trigger_rule, null, 2)}</pre></details></td>
