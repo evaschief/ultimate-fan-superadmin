@@ -71,12 +71,12 @@ const TABS = [
   // nothing captured shows an empty state that says why, which is itself the
   // useful answer.
   { key: 'raw-plays',     label: 'Raw Plays',   suffix: '/raw-plays'      },
-  { key: 'raw-snapshots', label: 'Raw Snapshots', suffix: '/raw-snapshots' },
+  { key: 'raw-snapshots', label: 'Raw Stats',   suffix: '/raw-snapshots' },
   { key: 'raw-state',     label: 'Raw State',   suffix: '/raw-state'      },
-  { key: 'events',        label: 'Game Events', suffix: '/events'         },
   { key: 'athletes',      label: 'Athletes',    suffix: '/athletes'       },
   { key: 'players',       label: 'Users',       suffix: ''                },
   { key: 'bets',          label: 'Bets',        suffix: '/bets'           },
+  { key: 'events',        label: 'Game Events', suffix: '/events'         },
 ] as const;
 
 export type GameTab = (typeof TABS)[number]['key'];

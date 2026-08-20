@@ -36,56 +36,79 @@ export type RawEventRow = RawEvent & Record<string, unknown>;
 export interface EventColumn {
   key: string;
   group: string;
+  derived?: (row: RawEventRow) => unknown;
 }
 
 export const GAME_EVENT_COLUMNS: EventColumn[] = [
-  // Directly stored event record. event_data is the raw input to the
-  // following display fields, so it intentionally appears before them.
-  { key: 'id',                     group: 'Stored game_events row' },
-  { key: 'event_id',               group: 'Stored game_events row' },
-  { key: 'game_code',              group: 'Stored game_events row' },
-  { key: 'game_id',                group: 'Stored game_events row' },
-  { key: 'event_type',             group: 'Stored game_events row' },
-  { key: 'bet_id',                 group: 'Stored game_events row' },
-  { key: 'winning_option',         group: 'Stored game_events row' },
-  { key: 'created_at',             group: 'Stored game_events row' },
-  { key: 'event_data',             group: 'Raw event payload' },
+  // Every physical game_events column, in physical-table reading order.
+  { key: 'id',                     group: 'Stored game_events columns' },
+  { key: 'event_id',               group: 'Stored game_events columns' },
+  { key: 'dedupe_key',             group: 'Stored game_events columns' },
+  { key: 'game_code',              group: 'Stored game_events columns' },
+  { key: 'game_id',                group: 'Stored game_events columns' },
+  { key: 'event_type',             group: 'Stored game_events columns' },
+  { key: 'bet_id',                 group: 'Stored game_events columns' },
+  { key: 'winning_option',         group: 'Stored game_events columns' },
+  { key: 'created_at',             group: 'Stored game_events columns' },
+  { key: 'event_data',             group: 'Stored game_events columns' },
+  { key: 'type_slug',              group: 'Stored game_events columns' },
+  { key: 'type_abbreviation',      group: 'Stored game_events columns' },
+  { key: 'type_text',              group: 'Stored game_events columns' },
+  { key: 'play_text',              group: 'Stored game_events columns' },
+  { key: 'short_text',             group: 'Stored game_events columns' },
+  { key: 'period',                 group: 'Stored game_events columns' },
+  { key: 'clock',                  group: 'Stored game_events columns' },
+  { key: 'wallclock',              group: 'Stored game_events columns' },
+  { key: 'team',                   group: 'Stored game_events columns' },
+  { key: 'player',                 group: 'Stored game_events columns' },
+  { key: 'secondary_player',       group: 'Stored game_events columns' },
+  { key: 'subtype',                group: 'Stored game_events columns' },
+  { key: 'yards',                  group: 'Stored game_events columns' },
+  { key: 'scoring_play',           group: 'Stored game_events columns' },
+  { key: 'start_yard_line',        group: 'Stored game_events columns' },
+  { key: 'start_down',             group: 'Stored game_events columns' },
+  { key: 'start_distance',         group: 'Stored game_events columns' },
+  { key: 'yards_to_endzone',       group: 'Stored game_events columns' },
+  { key: 'end_yard_line',          group: 'Stored game_events columns' },
+  { key: 'end_down',               group: 'Stored game_events columns' },
+  { key: 'end_distance',           group: 'Stored game_events columns' },
+  { key: 'end_yards_to_endzone',   group: 'Stored game_events columns' },
+  { key: 'end_down_distance_text', group: 'Stored game_events columns' },
+  { key: 'end_possession_text',    group: 'Stored game_events columns' },
+  { key: 'home_score',             group: 'Stored game_events columns' },
+  { key: 'away_score',             group: 'Stored game_events columns' },
+  { key: 'home_win_probability',   group: 'Stored game_events columns' },
 
-  // Fields extracted / flattened from provider payloads for display.
-  { key: 'type_slug',              group: 'Read from payload' },
-  { key: 'type_slug',              group: 'Classification' },
-  { key: 'type_abbreviation',      group: 'Classification' },
-  { key: 'type_text',              group: 'Classification' },
-  { key: 'play_text',              group: 'Classification' },
-  { key: 'short_text',             group: 'Read from payload' },
-
-  { key: 'period',                 group: 'Timing' },
-  { key: 'clock',                  group: 'Timing' },
-  { key: 'wallclock',              group: 'Timing' },
-
-  { key: 'team',                   group: 'Play context' },
-  { key: 'player',                 group: 'Play context' },
-  { key: 'secondary_player',       group: 'Play context' },
-  { key: 'subtype',                group: 'Play context' },
-  { key: 'yards',                  group: 'Play context' },
-  { key: 'scoring_play',           group: 'Play context' },
-
-  { key: 'start_yard_line',        group: 'Field position' },
-  { key: 'start_down',             group: 'Field position' },
-  { key: 'start_distance',         group: 'Field position' },
-  { key: 'yards_to_endzone',       group: 'Field position' },
-  { key: 'end_yard_line',          group: 'Field position' },
-  { key: 'end_down',               group: 'Field position' },
-  { key: 'end_distance',           group: 'Field position' },
-  { key: 'end_yards_to_endzone',   group: 'Field position' },
-  { key: 'end_down_distance_text', group: 'Field position' },
-  { key: 'end_possession_text',    group: 'Field position' },
-
-  { key: 'home_score',             group: 'Score state' },
-  { key: 'away_score',             group: 'Score state' },
-  { key: 'home_win_probability',   group: 'Score state' },
+  // These do not exist in the table. They are short, labelled reads of the
+  // stored JSON payload, provided only to make the feed easy to inspect.
+  { key: 'payload_period', group: 'Derived from event_data', derived: row => payloadValue(row, 'period') },
+  { key: 'payload_clock',  group: 'Derived from event_data', derived: row => payloadValue(row, 'clock') },
+  { key: 'payload_team',   group: 'Derived from event_data', derived: row => payloadValue(row, 'team') },
+  { key: 'payload_player', group: 'Derived from event_data', derived: row => payloadValue(row, 'player', 'playerId', 'player_id') },
+  { key: 'payload_yards',  group: 'Derived from event_data', derived: row => payloadValue(row, 'yards') },
+  { key: 'payload_score',  group: 'Derived from event_data', derived: row => payloadScore(row) },
 
 ];
+
+function payloadValue(row: RawEventRow, ...keys: string[]): unknown {
+  const payload = row.event_data;
+  if (!payload || typeof payload !== 'object') return null;
+  for (const key of keys) {
+    const value = (payload as Record<string, unknown>)[key];
+    if (value !== null && value !== undefined && value !== '') return value;
+  }
+  return null;
+}
+
+function payloadScore(row: RawEventRow): string | null {
+  const home = payloadValue(row, 'homeScore', 'home_score');
+  const away = payloadValue(row, 'awayScore', 'away_score');
+  return home == null && away == null ? null : `${away ?? '—'} – ${home ?? '—'}`;
+}
+
+export function columnValue(column: EventColumn, row: RawEventRow): unknown {
+  return column.derived ? column.derived(row) : row[column.key];
+}
 
 /** Consecutive runs of the same group, for the spanning header row. */
 export function columnGroups(columns: EventColumn[]): { group: string; span: number }[] {

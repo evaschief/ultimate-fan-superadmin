@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { GAME_EVENT_COLUMNS, RawEventRow, cellText, columnGroups } from './eventFormat';
+import { GAME_EVENT_COLUMNS, RawEventRow, cellText, columnGroups, columnValue } from './eventFormat';
 
 // One table for both event views. They differ only in which rows they are given
 // — Game Events gets the gameplay subset, Raw Events gets every row — so the
@@ -47,7 +47,8 @@ export default function EventTable({
     const empty = new Set(GAME_EVENT_COLUMNS.map(c => c.key));
     for (const row of events) {
       for (const key of Array.from(empty)) {
-        if (cellText(key, row[key]) !== null) empty.delete(key);
+        const column = GAME_EVENT_COLUMNS.find(candidate => candidate.key === key);
+        if (column && cellText(key, columnValue(column, row)) !== null) empty.delete(key);
       }
       if (empty.size === 0) break;
     }
@@ -60,7 +61,7 @@ export default function EventTable({
     if (!withSearch) return null;
     return new Map(events.map(e => [
       e.id,
-      GAME_EVENT_COLUMNS.map(c => cellText(c.key, e[c.key]) ?? '').join(' ').toLowerCase(),
+      GAME_EVENT_COLUMNS.map(c => cellText(c.key, columnValue(c, e)) ?? '').join(' ').toLowerCase(),
     ]));
   }, [events, withSearch]);
 
@@ -201,7 +202,7 @@ export default function EventTable({
                     </button>
                   </td>
                   {columns.map(col => {
-                    const text = cellText(col.key, row[col.key]);
+                    const text = cellText(col.key, columnValue(col, row));
                     const clipped = text !== null && text.length > MAX_CELL;
                     return (
                       <td
@@ -239,7 +240,7 @@ export default function EventTable({
                         {/* Any other column whose value was too long for its cell. */}
                         {columns
                           .filter(c => c.key !== 'event_data')
-                          .map(c => ({ key: c.key, text: cellText(c.key, row[c.key]) }))
+                          .map(c => ({ key: c.key, text: cellText(c.key, columnValue(c, row)) }))
                           .filter(v => v.text !== null && v.text.length > MAX_CELL)
                           .map(v => (
                             <div key={v.key} className="mt-2">
