@@ -30,7 +30,7 @@ function triggerSummary(row: CatalogRow) {
   const conditionText = conditions.slice(0, 2).map(condition => {
     const field = fieldLabels[String(condition.field)] ?? String(condition.field);
     const value = condition.value ?? (Array.isArray(condition.values) ? condition.values.join('–') : '');
-    const operator: Record<string, string> = { eq: '=', neq: '≠', lt: '<', lte: '≤', gt: '>', gte: '≥', in: 'is one of', not_in: 'is not', between: 'is between' };
+    const operator: Record<string, string> = { eq: '=', neq: '≠', lt: '<', lte: '≤', gt: '>', gte: '≥', in: 'is one of', not_in: 'is not', between: 'is between', multiple_of: 'is divisible by' };
     return `${field} ${operator[String(condition.operator)] ?? String(condition.operator)} ${String(value)}`;
   });
   const detail = [eventTypes.length ? `On ${eventTypes.map(event => event.replaceAll('_', ' ')).join(' or ')}` : '', conditionText.join(', ')].filter(Boolean).join(': ');
