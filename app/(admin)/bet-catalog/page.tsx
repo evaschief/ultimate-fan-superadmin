@@ -20,6 +20,29 @@ function pricingText(pricing: Record<string, unknown>) {
   return JSON.stringify(pricing);
 }
 
+const fieldLabels: Record<string, string> = {
+  period: 'period', clock_seconds: 'clock', home_score: 'home score', away_score: 'away score',
+  score_difference: 'score difference', score_difference_abs: 'score gap', is_tied: 'game tied',
+  offense_team: 'offense', offense_is_trailing: 'offense trailing', is_new_drive: 'new drive',
+  down: 'down', yards_to_go: 'yards to go', field_position_yards: 'yards to end zone',
+  is_red_zone: 'in the red zone', drive_play_count: 'drive play count', play_type_slug: 'play type',
+  drive_end_scored: 'drive scored', drive_end_touchdown: 'drive touchdown', drive_end_turnover: 'drive turnover',
+};
+
+function triggerSummary(row: CatalogRow) {
+  const rule = row.trigger_rule ?? {}; const conditions = Array.isArray(rule.all) ? rule.all as Record<string, unknown>[] : [];
+  const eventTypes = Array.isArray(rule.event_types) ? rule.event_types.map(String) : [];
+  const conditionText = conditions.slice(0, 2).map(condition => {
+    const field = fieldLabels[String(condition.field)] ?? String(condition.field);
+    const value = condition.value ?? (Array.isArray(condition.values) ? condition.values.join('–') : '');
+    const operator: Record<string, string> = { eq: '=', neq: '≠', lt: '<', lte: '≤', gt: '>', gte: '≥', in: 'is one of', not_in: 'is not', between: 'is between' };
+    return `${field} ${operator[String(condition.operator)] ?? String(condition.operator)} ${String(value)}`;
+  });
+  const detail = [eventTypes.length ? `On ${eventTypes.map(event => event.replaceAll('_', ' ')).join(' or ')}` : '', conditionText.join(', ')].filter(Boolean).join(': ');
+  const base = row.trigger_context ?? row.trigger_description;
+  return detail ? `${base} — ${detail}${conditions.length > 2 ? ` +${conditions.length - 2} more` : ''}` : base;
+}
+
 export default async function GlobalBetCatalogPage({ searchParams = {} }: { searchParams?: Record<string, string | string[] | undefined> }) {
   const sport = stringValue(searchParams.sport) || 'NFL';
   const tier = stringValue(searchParams.tier);
@@ -46,7 +69,7 @@ export default async function GlobalBetCatalogPage({ searchParams = {} }: { sear
       <td className="px-3 py-2 text-secondary">{row.implementation_status}</td>
       <td className="px-3 py-2 text-gray-900 min-w-44"><Link href={`/bet-catalog/${row.id}`} className="hover:text-amber hover:underline"><div>{row.bet_name}</div><div className="font-mono text-xs text-muted mt-0.5">{row.bet_id}</div></Link><Link href={`/bet-catalog/${row.id}`} className="text-xs text-amber hover:underline">Edit</Link></td>
       <td className="px-3 py-2 text-secondary min-w-72">{row.description ?? '—'}</td>
-      <td className="px-3 py-2 text-secondary min-w-48">{row.trigger_context ?? row.trigger_description}</td>
+      <td className="px-3 py-2 text-secondary min-w-64">{triggerSummary(row)}</td>
       <td className="px-3 py-2 text-secondary"><details><summary className="cursor-pointer text-xs text-amber whitespace-nowrap">View JSON</summary><pre className="mt-2 p-2 bg-gray-50 border border-border rounded text-xs font-mono whitespace-pre-wrap min-w-80">{JSON.stringify(row.trigger_rule, null, 2)}</pre></details></td>
       <td className="px-3 py-2 text-secondary">{row.display_tier ? TIER[row.display_tier] : '—'}</td>
       <td className="px-3 py-2 text-secondary">{row.is_player_bet ? 'Yes' : 'No'}</td>
