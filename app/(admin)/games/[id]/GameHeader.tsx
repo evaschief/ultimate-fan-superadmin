@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import GenerateRosterButton from './GenerateRosterButton';
 import SetFinishedButton from './SetFinishedButton';
 import RecordingToggle from './RecordingToggle';
+import LiveGameRefresh from './LiveGameRefresh';
 
 // Shared header + tab bar for every game detail view. Deliberately a plain
 // component rather than a `layout.tsx`, because a layout at this segment
@@ -162,6 +163,7 @@ export default function GameHeader({ game, active, counts }: { game: GameRow; ac
           autoActivate={game.auto_activate === true}
           status={game.status}
         />
+        <LiveGameRefresh status={game.status} />
         {counts && (
           <span className="text-xs text-secondary font-mono">
             {counts.gameEvents.toLocaleString()} game_events
