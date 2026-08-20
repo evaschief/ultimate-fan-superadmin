@@ -8,7 +8,7 @@ const editableFields = [
   'pricing', 'default_window_seconds', 'manual_openable', 'active',
   'sort_order', 'display_tier', 'is_player_bet', 'average_plays_to_resolve',
   'base_excitement_rating', 'implementation_status', 'option_builder',
-  'selection_policy', 'settlement_rule',
+  'selection_policy', 'settlement_rule', 'settlement_summary',
 ] as const;
 
 function validJsonObject(value: unknown): value is Record<string, unknown> {
