@@ -7,9 +7,13 @@ import GameHeader, { getEventCounts, getGame } from './GameHeader';
 // appended extras below means a future database column cannot be hidden here.
 const STORED_COLUMNS = [
   'id', 'game_id', 'game_code', 'uid', 'display_name', 'balance',
-  'locked_amount', 'pending_potential', 'rank', 'is_eliminated',
+  'locked_amount', 'pending_potential', 'rank',
   'lineup', 'created_at',
 ] as const;
+
+// This legacy database field is retained for historical records, but the game
+// no longer eliminates users so it is intentionally not part of this screen.
+const HIDDEN_LEGACY_COLUMNS = new Set(['is_eliminated']);
 
 function formatCell(value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
@@ -28,7 +32,9 @@ export default async function GameUsersPage({ params }: { params: { id: string }
   ]);
   const rows = users ?? [];
   const extraColumns = Array.from(new Set(
-    rows.flatMap(row => Object.keys(row).filter(key => !STORED_COLUMNS.includes(key as typeof STORED_COLUMNS[number]))),
+    rows.flatMap(row => Object.keys(row).filter(key =>
+      !STORED_COLUMNS.includes(key as typeof STORED_COLUMNS[number]) && !HIDDEN_LEGACY_COLUMNS.has(key),
+    )),
   ));
   const columns = [...STORED_COLUMNS, ...extraColumns];
 
