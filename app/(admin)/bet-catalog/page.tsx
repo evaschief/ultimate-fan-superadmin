@@ -52,7 +52,7 @@ export default async function GlobalBetCatalogPage({ searchParams = {} }: { sear
     if (tier && String(row.display_tier ?? '') !== tier) return false;
     if (status !== 'all' && row.implementation_status !== status) return false;
     return true;
-  });
+  }).sort((a, b) => Number(a.implementation_status === 'retired') - Number(b.implementation_status === 'retired'));
 
   return <div className="p-5 pb-10">
     <div className="mb-5"><h1 className="text-lg font-semibold text-gray-900">Bet Catalogue</h1><p className="text-sm text-secondary mt-1">The shared <span className="font-mono">bet_catalog</span> source of truth for all potential bet types.</p></div>
