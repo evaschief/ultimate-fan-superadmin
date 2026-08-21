@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { ROSTER_TABLE } from '@/lib/tables';
 import GameHeader, { getEventCounts, getGame } from './GameHeader';
@@ -52,6 +53,7 @@ export default async function GameUsersPage({ params }: { params: { id: string }
         <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="border-b border-border bg-gray-50">
+              <th className="px-3 py-2" />
               {columns.map(column => (
                 <th key={column} className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">
                   {column.replaceAll('_', ' ')}
@@ -62,15 +64,20 @@ export default async function GameUsersPage({ params }: { params: { id: string }
           <tbody>
             {rows.map((row, i) => (
               <tr key={row.id ?? `${row.game_id}:${row.uid}`} className={`border-b border-border last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                <td className="px-3 py-2">
+                  <Link href={`/games/${game.id}/users/${row.uid}`} className="text-xs text-amber hover:underline whitespace-nowrap">
+                    Bet log →
+                  </Link>
+                </td>
                 {columns.map(column => (
-                  <td key={column} className="px-3 py-2 font-mono text-xs text-secondary align-top max-w-md whitespace-normal break-all">
+                  <td key={column} className="px-3 py-2 font-mono text-xs text-secondary align-top whitespace-nowrap">
                     {formatCell(row[column])}
                   </td>
                 ))}
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={columns.length} className="px-3 py-8 text-center text-muted">No users have joined this game.</td></tr>
+              <tr><td colSpan={columns.length + 1} className="px-3 py-8 text-center text-muted">No users have joined this game.</td></tr>
             )}
           </tbody>
         </table>
