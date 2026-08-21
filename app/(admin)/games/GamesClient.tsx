@@ -158,7 +158,7 @@ export default function GamesClient({
   initialGames,
   initialSource = 'real',
 }: {
-  initialGames: (GameSession & { isSim?: boolean; auditSheetUrl?: string | null; recording?: boolean; gameEvents?: number; rawEvents?: number })[];
+  initialGames: (GameSession & { isSim?: boolean; auditSheetUrl?: string | null; recording?: boolean; gameEvents?: number; rawEvents?: number; openBets?: number; pendingWagers?: number; dupGroups?: number; liveMismatch?: boolean })[];
   /** The Sims page renders this same table over the simulated games instead. */
   initialSource?: SourceFilter;
 }) {
@@ -273,6 +273,8 @@ export default function GamesClient({
                 <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Status</th>
                 <th className="text-left px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Total Players</th>
                 <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Events</th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Open Bets</th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">Pending Wagers</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -346,6 +348,45 @@ export default function GamesClient({
                               the one divergence worth catching mid-game. */}
                           {(game.rawEvents ?? 0) > 0 && game.gameEvents === 0 && (
                             <div className="text-danger text-[10px]">not processing</div>
+                          )}
+                        </>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-xs whitespace-nowrap">
+                      {game.openBets === undefined ? (
+                        <span className="text-muted">—</span>
+                      ) : (
+                        <>
+                          <span className={game.openBets > 0 ? 'text-gray-900' : 'text-muted'}>
+                            {game.openBets}
+                          </span>
+                          {/* Offers left open on a finished game: nothing will
+                              settle them, and a player's app keeps showing them
+                              as live bets. */}
+                          {game.openBets > 0 && game.status === 'ended' && (
+                            <div className="text-danger text-[10px]">open after game ended</div>
+                          )}
+                        </>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-xs whitespace-nowrap">
+                      {game.pendingWagers === undefined ? (
+                        <span className="text-muted">—</span>
+                      ) : (
+                        <>
+                          <span className={game.pendingWagers > 0 ? 'text-gray-900' : 'text-muted'}>
+                            {game.pendingWagers}
+                          </span>
+                          {/* A player holding more pending rows than the open
+                              bets they point at is the off-by-one their app
+                              reports. */}
+                          {game.liveMismatch && (
+                            <div className="text-danger text-[10px]">exceeds open bets</div>
+                          )}
+                          {(game.dupGroups ?? 0) > 0 && (
+                            <div className="text-amber text-[10px]">
+                              {game.dupGroups} duplicate{game.dupGroups === 1 ? '' : 's'}
+                            </div>
                           )}
                         </>
                       )}

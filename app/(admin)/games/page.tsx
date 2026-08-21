@@ -88,6 +88,67 @@ async function getAllGames(): Promise<GameSession[]> {
       ];
     }));
 
+    // Open offers vs the wagers players actually hold against them. Counting
+    // alone can't answer "why does a player see a bet we don't", so both sides
+    // are fetched and compared: an open bet with no pending wager and a pending
+    // wager whose offer is no longer open are different problems.
+    //
+    // Bulk-fetched for the shown games in two queries per table rather than per
+    // game, since this list auto-refreshes.
+    const betState: Record<string, {
+      openBets: number; pendingWagers: number; dupGroups: number; liveMismatch: boolean;
+    }> = {};
+    for (const row of shown) {
+      betState[row.id] = { openBets: 0, pendingWagers: 0, dupGroups: 0, liveMismatch: false };
+    }
+    if (shown.length > 0) {
+      const shownIds = shown.map(r => r.id);
+      const [
+        { data: nflOffers }, { data: nhlOffers },
+        { data: nflWagers }, { data: nhlWagers },
+      ] = await Promise.all([
+        supabase.from('nfl_bets').select('game_code, bet_id, status').in('game_code', shownIds),
+        supabase.from('nhl_bets').select('game_code, bet_id, status').in('game_code', shownIds),
+        supabase.from('nfl_player_bets').select('game_code, bet_id, uid, status').in('game_code', shownIds),
+        supabase.from('nhl_player_bets').select('game_code, bet_id, uid, status').in('game_code', shownIds),
+      ]);
+
+      // bet_id -> whether the offer is still open, per game
+      const openOffer = new Map<string, boolean>();
+      for (const o of [...(nflOffers ?? []), ...(nhlOffers ?? [])]) {
+        if (!betState[o.game_code]) continue;
+        openOffer.set(`${o.game_code}|${o.bet_id}`, o.status === 'open');
+        if (o.status === 'open') betState[o.game_code].openBets += 1;
+      }
+
+      // Group wagers by game, then by player, so the per-player comparison that
+      // exposes a duplicate is available at game level too.
+      const wagersByGame: Record<string, { uid: string; bet_id: string; status: string }[]> = {};
+      for (const w of [...(nflWagers ?? []), ...(nhlWagers ?? [])]) {
+        if (!betState[w.game_code]) continue;
+        (wagersByGame[w.game_code] ??= []).push(w);
+      }
+      for (const [gameId, wagers] of Object.entries(wagersByGame)) {
+        const state = betState[gameId];
+        const byPlayerBet: Record<string, number> = {};
+        const pendingByPlayer: Record<string, { rows: number; openBetIds: Set<string> }> = {};
+
+        for (const w of wagers) {
+          byPlayerBet[`${w.uid}|${w.bet_id}`] = (byPlayerBet[`${w.uid}|${w.bet_id}`] ?? 0) + 1;
+          if (w.status !== 'pending') continue;
+          state.pendingWagers += 1;
+          const p = (pendingByPlayer[w.uid] ??= { rows: 0, openBetIds: new Set() });
+          p.rows += 1;
+          if (openOffer.get(`${gameId}|${w.bet_id}`)) p.openBetIds.add(w.bet_id);
+        }
+
+        state.dupGroups = Object.values(byPlayerBet).filter(n => n > 1).length;
+        // The live signature of the off-by-one: a player holding more pending
+        // rows than the number of still-open bets those rows point at.
+        state.liveMismatch = Object.values(pendingByPlayer).some(p => p.rows !== p.openBetIds.size);
+      }
+    }
+
     return shown.map(row => ({
       id: row.id,
       // A venue game scheduled for a future date legitimately has no join_code
@@ -115,6 +176,10 @@ async function getAllGames(): Promise<GameSession[]> {
       rawEvents: eventCounts[row.id]?.raw ?? 0,
       auditSheetUrl: row.audit_sheet_url ?? null,
       playerCount: playerCounts[row.id] ?? 0,
+      openBets: betState[row.id]?.openBets ?? 0,
+      pendingWagers: betState[row.id]?.pendingWagers ?? 0,
+      dupGroups: betState[row.id]?.dupGroups ?? 0,
+      liveMismatch: betState[row.id]?.liveMismatch ?? false,
     }));
   } catch {
     return [];

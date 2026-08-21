@@ -55,6 +55,16 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    label: 'Duplicate Wagers',
+    href: '/duplicate-wagers',
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 2h8a2 2 0 012 2v8a2 2 0 01-2 2h-8a2 2 0 01-2-2v-8a2 2 0 012-2z" />
+      </svg>
+    ),
+  },
+  {
     label: 'Players',
     href: '/players',
     icon: (
