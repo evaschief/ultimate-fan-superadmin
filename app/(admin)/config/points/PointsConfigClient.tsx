@@ -8,6 +8,8 @@ interface Props {
   versions: ConfigVersion[];
 }
 
+type SportFilter = 'all' | 'NFL' | 'NHL';
+
 function NumberField({
   label, value, onChange,
 }: { label: string; value: number; onChange: (v: number) => void }) {
@@ -27,6 +29,7 @@ function NumberField({
 
 export default function PointsConfigClient({ initialConfig, versions }: Props) {
   const [config, setConfig] = useState<ScoringConfig>(initialConfig);
+  const [sportFilter, setSportFilter] = useState<SportFilter>('all');
   const [label, setLabel] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -75,21 +78,37 @@ export default function PointsConfigClient({ initialConfig, versions }: Props) {
     <div className="flex gap-8">
       {/* Main config */}
       <div className="flex-1 space-y-6">
+        <div className="flex items-center gap-2" aria-label="Sport filter">
+          <span className="mr-1 text-sm font-medium text-secondary">Sport</span>
+          {(['all', 'NFL', 'NHL'] as SportFilter[]).map((sport) => {
+            const label = sport === 'all' ? 'All sports' : sport;
+            return (
+              <button
+                key={sport}
+                type="button"
+                onClick={() => setSportFilter(sport)}
+                className={sportFilter === sport ? 'btn-primary' : 'btn-secondary'}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
         {/* Hockey */}
-        <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-4">Hockey Scoring</h2>
+        {(sportFilter === 'all' || sportFilter === 'NHL') && <div className="card">
+          <h2 className="font-semibold text-gray-900 mb-4">NHL Scoring</h2>
           {(Object.entries(config.hockey) as [keyof typeof config.hockey, number][]).map(([k, v]) => (
             <NumberField key={k} label={k} value={v} onChange={val => setHockey(k, val)} />
           ))}
-        </div>
+        </div>}
 
         {/* Football */}
-        <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-4">Football Scoring</h2>
+        {(sportFilter === 'all' || sportFilter === 'NFL') && <div className="card">
+          <h2 className="font-semibold text-gray-900 mb-4">NFL Scoring</h2>
           {(Object.entries(config.football) as [keyof typeof config.football, number][]).map(([k, v]) => (
             <NumberField key={k} label={k} value={v} onChange={val => setFootball(k, val)} />
           ))}
-        </div>
+        </div>}
 
         {/* Multipliers */}
         <div className="card">
